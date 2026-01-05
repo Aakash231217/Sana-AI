@@ -101,8 +101,8 @@ export const POST = async (req: NextRequest) => {
 
         console.log('[TUTOR] Updated message count to:', updatedState.messageCount)
         // Get current chapter for context
-        const currentChapter = chapters.find(ch => ch.chapterNumber === updatedState.currentChapter)
-        const currentTopic = currentChapter?.topics.find(t => t.topicNumber === updatedState.currentTopic)
+        const currentChapter = chapters.find((ch: { chapterNumber: number }) => ch.chapterNumber === updatedState.currentChapter)
+        const currentTopic = currentChapter?.topics.find((t: { topicNumber: number }) => t.topicNumber === updatedState.currentTopic)
         const isLastTopic = currentTopic && currentChapter && currentTopic.topicNumber === currentChapter.topics.length
         // We default to false because we now use strict gatekeeping via completeTopic
         const shouldTriggerQuiz = false
