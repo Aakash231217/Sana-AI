@@ -190,6 +190,95 @@ export default function TestRunnerPage() {
     );
 }
 
+// Circular Progress Component for individual traits
+function CircularProgress({ percentage, color, size = 120 }: { percentage: number; color: string; size?: number }) {
+    const strokeWidth = 10;
+    const radius = (size - strokeWidth) / 2;
+    const circumference = radius * 2 * Math.PI;
+    const offset = circumference - (percentage / 100) * circumference;
+
+    return (
+        <svg width={size} height={size} className="transform -rotate-90">
+            {/* Background circle */}
+            <circle
+                cx={size / 2}
+                cy={size / 2}
+                r={radius}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={strokeWidth}
+                className="text-slate-700"
+            />
+            {/* Progress circle */}
+            <circle
+                cx={size / 2}
+                cy={size / 2}
+                r={radius}
+                fill="none"
+                stroke={color}
+                strokeWidth={strokeWidth}
+                strokeDasharray={circumference}
+                strokeDashoffset={offset}
+                strokeLinecap="round"
+                className="transition-all duration-1000 ease-out"
+            />
+        </svg>
+    );
+}
+
+// Pie Chart Component
+function PieChart({ data }: { data: { label: string; value: number; color: string }[] }) {
+    const total = data.reduce((sum, item) => sum + item.value, 0);
+    let currentAngle = 0;
+
+    const createArcPath = (startAngle: number, endAngle: number, radius: number) => {
+        const start = {
+            x: 100 + radius * Math.cos((startAngle - 90) * Math.PI / 180),
+            y: 100 + radius * Math.sin((startAngle - 90) * Math.PI / 180)
+        };
+        const end = {
+            x: 100 + radius * Math.cos((endAngle - 90) * Math.PI / 180),
+            y: 100 + radius * Math.sin((endAngle - 90) * Math.PI / 180)
+        };
+        const largeArcFlag = endAngle - startAngle > 180 ? 1 : 0;
+
+        return `M 100 100 L ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${end.x} ${end.y} Z`;
+    };
+
+    return (
+        <div className="flex flex-col items-center">
+            <svg width={200} height={200} viewBox="0 0 200 200">
+                {data.map((item, index) => {
+                    const angle = (item.value / total) * 360;
+                    const path = createArcPath(currentAngle, currentAngle + angle, 80);
+                    currentAngle += angle;
+
+                    return (
+                        <path
+                            key={index}
+                            d={path}
+                            fill={item.color}
+                            className="hover:opacity-80 transition-opacity cursor-pointer"
+                            style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))' }}
+                        />
+                    );
+                })}
+                {/* Center circle for donut effect */}
+                <circle cx={100} cy={100} r={40} fill="#1e293b" />
+            </svg>
+            {/* Legend */}
+            <div className="flex flex-wrap justify-center gap-3 mt-4">
+                {data.map((item, index) => (
+                    <div key={index} className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
+                        <span className="text-xs text-slate-400">{item.label}</span>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
 // Simple Inline Result View (Can be moved to separate component later)
 function TestResultView({ scores, onBack }: { scores: Record<string, number>, onBack: () => void }) {
 
@@ -198,15 +287,35 @@ function TestResultView({ scores, onBack }: { scores: Record<string, number>, on
     // If not 20 questions, we should adjust. But we seeded 20 per section.
 
     const traits = [
-        { key: "Extraversion", label: "Extraversion (Social)", desc: "How much you enjoy being with others." },
-        { key: "Agreeableness", label: "Agreeableness (Kindness)", desc: "How well you get along with others." },
-        { key: "Conscientiousness", label: "Conscientiousness (Focus)", desc: "How organized and responsible you are." },
-        { key: "EmotionalStability", label: "Emotional Strength", desc: "How calm and confident you feel." },
-        { key: "Openness", label: "Openness (Creativity)", desc: "How much you like trying new things." },
+        { key: "Extraversion", label: "Extraversion (Social)", desc: "How much you enjoy being with others.", color: "#3b82f6" },
+        { key: "Agreeableness", label: "Agreeableness (Kindness)", desc: "How well you get along with others.", color: "#10b981" },
+        { key: "Conscientiousness", label: "Conscientiousness (Focus)", desc: "How organized and responsible you are.", color: "#f59e0b" },
+        { key: "EmotionalStability", label: "Emotional Strength", desc: "How calm and confident you feel.", color: "#ec4899" },
+        { key: "Openness", label: "Openness (Creativity)", desc: "How much you like trying new things.", color: "#8b5cf6" },
     ];
 
+    // Calculate normalized scores for each trait
+    const traitData = traits.map(trait => {
+        const score = scores[trait.key] || 0;
+        const percentage = ((score - 20) / (100 - 20)) * 100;
+        const normalized = Math.max(0, Math.min(100, percentage));
+        return { ...trait, score, normalized };
+    });
+
+    // Prepare data for pie chart
+    const pieData = traitData.map(trait => ({
+        label: trait.label.split(' ')[0], // Just the first word
+        value: trait.score,
+        color: trait.color
+    }));
+
+    // Find strongest and areas to develop
+    const sorted = [...traitData].sort((a, b) => b.normalized - a.normalized);
+    const strongest = sorted[0];
+    const toImprove = sorted[sorted.length - 1];
+
     return (
-        <div className="max-w-4xl mx-auto py-12 px-4 text-center">
+        <div className="max-w-5xl mx-auto py-12 px-4 text-center">
             <div className="bg-slate-900 border border-white/10 rounded-3xl p-8 md:p-12 mb-8">
                 <div className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center text-white mx-auto mb-6 shadow-xl shadow-green-500/20">
                     <CheckCircle size={40} />
@@ -214,30 +323,82 @@ function TestResultView({ scores, onBack }: { scores: Record<string, number>, on
                 <h2 className="text-3xl font-bold text-white mb-2">Test Completed!</h2>
                 <p className="text-slate-400 mb-8">Here is your personality profile.</p>
 
-                <div className="grid gap-6 text-left">
-                    {traits.map(trait => {
-                        const score = scores[trait.key] || 0;
-                        const percentage = ((score - 20) / (100 - 20)) * 100; // Normalize 20-100 to 0-100
-                        const normalized = Math.max(0, Math.min(100, percentage)); // Clamp
+                {/* Overall Pie Chart Section */}
+                <div className="bg-slate-800/30 rounded-2xl p-6 mb-8">
+                    <h3 className="text-xl font-bold text-white mb-6">Your Personality Distribution</h3>
+                    <div className="flex flex-col lg:flex-row items-center justify-center gap-8">
+                        <PieChart data={pieData} />
+                        <div className="text-left space-y-3">
+                            <div className="bg-slate-700/30 rounded-xl p-4">
+                                <p className="text-slate-400 text-sm">Strongest Trait</p>
+                                <p className="text-white font-bold text-lg flex items-center gap-2">
+                                    <span className="w-3 h-3 rounded-full" style={{ backgroundColor: strongest.color }} />
+                                    {strongest.label}
+                                </p>
+                                <p className="text-slate-500 text-sm">{Math.round(strongest.normalized)}% score</p>
+                            </div>
+                            <div className="bg-slate-700/30 rounded-xl p-4">
+                                <p className="text-slate-400 text-sm">Area to Develop</p>
+                                <p className="text-white font-bold text-lg flex items-center gap-2">
+                                    <span className="w-3 h-3 rounded-full" style={{ backgroundColor: toImprove.color }} />
+                                    {toImprove.label}
+                                </p>
+                                <p className="text-slate-500 text-sm">{Math.round(toImprove.normalized)}% score</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-                        return (
+                {/* Circular Progress Charts for Each Trait */}
+                <div className="mb-8">
+                    <h3 className="text-xl font-bold text-white mb-6">Individual Trait Scores</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+                        {traitData.map(trait => (
+                            <div key={trait.key} className="bg-slate-800/30 rounded-2xl p-4 flex flex-col items-center">
+                                <div className="relative">
+                                    <CircularProgress percentage={trait.normalized} color={trait.color} size={100} />
+                                    <div className="absolute inset-0 flex items-center justify-center">
+                                        <span className="text-white font-bold text-lg">{Math.round(trait.normalized)}%</span>
+                                    </div>
+                                </div>
+                                <h4 className="text-white font-semibold text-sm mt-3 text-center">{trait.label.split('(')[0].trim()}</h4>
+                                <p className="text-slate-500 text-xs mt-1">Score: {trait.score}</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Detailed Breakdown with Progress Bars */}
+                <div>
+                    <h3 className="text-xl font-bold text-white mb-6">Detailed Breakdown</h3>
+                    <div className="grid gap-6 text-left">
+                        {traitData.map(trait => (
                             <div key={trait.key} className="bg-slate-800/50 rounded-xl p-6">
                                 <div className="flex justify-between items-end mb-2">
-                                    <div>
-                                        <h4 className="text-white font-bold text-lg">{trait.label}</h4>
-                                        <p className="text-slate-400 text-sm">{trait.desc}</p>
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-4 h-4 rounded-full" style={{ backgroundColor: trait.color }} />
+                                        <div>
+                                            <h4 className="text-white font-bold text-lg">{trait.label}</h4>
+                                            <p className="text-slate-400 text-sm">{trait.desc}</p>
+                                        </div>
                                     </div>
-                                    <span className="text-2xl font-bold text-brand-primary">{score}</span>
+                                    <div className="text-right">
+                                        <span className="text-2xl font-bold" style={{ color: trait.color }}>{trait.score}</span>
+                                        <span className="text-slate-500 text-sm ml-1">({Math.round(trait.normalized)}%)</span>
+                                    </div>
                                 </div>
                                 <div className="h-3 bg-slate-700 rounded-full overflow-hidden">
-                                    <div
-                                        className="h-full bg-gradient-to-r from-blue-500 to-purple-500"
-                                        style={{ width: `${normalized}%` }}
+                                    <motion.div
+                                        initial={{ width: 0 }}
+                                        animate={{ width: `${trait.normalized}%` }}
+                                        transition={{ duration: 1, ease: "easeOut" }}
+                                        className="h-full rounded-full"
+                                        style={{ backgroundColor: trait.color }}
                                     />
                                 </div>
                             </div>
-                        )
-                    })}
+                        ))}
+                    </div>
                 </div>
             </div>
 
