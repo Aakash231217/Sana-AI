@@ -381,6 +381,7 @@ model SubjectMark {
   marks           Float
   maxMarks        Float         @default(100)
   examId          String?
+  examType        String?
   exam            Exam?         @relation(fields: [examId], references: [id], onDelete: Cascade)
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
@@ -389,6 +390,7 @@ model SubjectMark {
   @@index([studentRecordId])
   @@index([subjectName])
   @@index([examId])
+  @@index([examType])
   @@unique([studentRecordId, subjectName, examId])
 }
 
