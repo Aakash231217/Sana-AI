@@ -1,10 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { api } from "@/trpc/react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
-import { ArrowLeft, ArrowRight, CheckCircle, Brain } from "lucide-react";
+import { 
+    ArrowLeft, ArrowRight, CheckCircle, Brain, Target, TrendingUp, 
+    Users, Lightbulb, Heart, Shield, Sparkles, Award, BookOpen,
+    Zap, Star, BarChart3, PieChart as PieChartIcon, Activity,
+    Download, Share2, Printer
+} from "lucide-react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 

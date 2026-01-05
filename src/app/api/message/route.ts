@@ -273,7 +273,7 @@ export const POST = async (req: NextRequest) => {
 
         if (updatedState.learningPhase === 'introduction') {
             // Build full chapter list for the overview
-            const allChaptersList = chapters.map(c => `- Chapter ${c.chapterNumber}: ${c.title}`).join('\n')
+            const allChaptersList = chapters.map((c: { chapterNumber: number; title: string }) => `- Chapter ${c.chapterNumber}: ${c.title}`).join('\n')
 
             if (updatedState.currentChapter === 1) {
                 // BOOK INTRODUCTION (First time)
@@ -291,7 +291,7 @@ CRITICAL: Do NOT use the "[TOPIC_COMPLETED]" token in this phase.`
             } else {
                 // CHAPTER INTRODUCTION (Subsequent chapters)
                 // Build topic list for this chapter
-                const topicList = currentChapter?.topics.map(t => `- ${t.title}`).join('\n') || 'Topics not listed.'
+                const topicList = currentChapter?.topics.map((t: { title: string }) => `- ${t.title}`).join('\n') || 'Topics not listed.'
 
                 tutorPrompt = `\n\n🎓 AI TUTOR MODE: CHAPTER INTRODUCTION
 Status: Student has just unlocked Chapter ${updatedState.currentChapter}: ${currentChapter?.title}.
@@ -438,7 +438,7 @@ Core Responsibilities:
   ${ocrContext}
   
   ${images.length > 0 ? `RELEVANT IMAGES:
-  ${images.map(img => `- ${img.caption || `Image on page ${img.pageNumber}`} (Page ${img.pageNumber}, Type: ${img.imageType || 'diagram'})`).join('\n')}
+  ${images.map((img: { caption?: string; pageNumber: number; imageType?: string }) => `- ${img.caption || `Image on page ${img.pageNumber}`} (Page ${img.pageNumber}, Type: ${img.imageType || 'diagram'})`).join('\n')}
   
   Note: The actual images will be displayed to the user alongside your response. Reference them naturally in your answer when relevant.
   ` : ''}
