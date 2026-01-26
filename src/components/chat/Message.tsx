@@ -4,9 +4,31 @@ import { cn } from "@/lib/utils";
 import { ExtendedMessage } from "@/types/message";
 import { Bot, User, Volume2, StopCircle, Languages } from "lucide-react";
 import ReactMarkdown from "react-markdown";
-import React, { forwardRef } from "react"; // Added React
+import React, { forwardRef, useMemo } from "react";
 import { useSpeechSynthesis } from "@/hooks/use-speech-synthesis";
 import { api } from "@/trpc/react";
+import YouTubeEmbed from "./YouTubeEmbed";
+
+// Helper function to extract YouTube video suggestions from text
+const extractYouTubeVideos = (text: string): { videoId: string; title: string }[] => {
+    const youtubePattern = /\[YOUTUBE:([a-zA-Z0-9_-]{11}):([^\]]+)\]/g;
+    const videos: { videoId: string; title: string }[] = [];
+    let match;
+    
+    while ((match = youtubePattern.exec(text)) !== null) {
+        videos.push({
+            videoId: match[1],
+            title: match[2].trim(),
+        });
+    }
+    
+    return videos;
+};
+
+// Helper function to remove YouTube tokens from text for clean display
+const removeYouTubeTokens = (text: string): string => {
+    return text.replace(/\[YOUTUBE:[a-zA-Z0-9_-]{11}:[^\]]+\]/g, '').trim();
+};
 
 interface MessageProps {
     message: ExtendedMessage;
@@ -59,6 +81,18 @@ const Message = forwardRef<HTMLDivElement, MessageProps>(
             }
         };
 
+        // Extract YouTube videos from the message (only for AI messages)
+        const youtubeVideos = useMemo(() => {
+            if (message.isUserMessage || typeof message.text !== "string") return [];
+            return extractYouTubeVideos(message.text);
+        }, [message.text, message.isUserMessage]);
+
+        // Clean message text (remove YouTube tokens)
+        const cleanMessageText = useMemo(() => {
+            if (typeof message.text !== "string") return message.text;
+            return removeYouTubeTokens(message.text);
+        }, [message.text]);
+
         return (
             <div
                 ref={ref}
@@ -110,11 +144,24 @@ const Message = forwardRef<HTMLDivElement, MessageProps>(
                                 "text-slate-100": !message.isUserMessage,
                             })}>
                                 <ReactMarkdown>
-                                    {(showTranslated && translatedText) ? translatedText : message.text}
+                                    {(showTranslated && translatedText) ? removeYouTubeTokens(translatedText) : cleanMessageText}
                                 </ReactMarkdown>
                             </div>
                         ) : (
                             message.text
+                        )}
+
+                        {/* YouTube Video Embeds */}
+                        {youtubeVideos.length > 0 && (
+                            <div className="mt-3 space-y-2">
+                                {youtubeVideos.map((video, index) => (
+                                    <YouTubeEmbed
+                                        key={`${video.videoId}-${index}`}
+                                        videoId={video.videoId}
+                                        title={video.title}
+                                    />
+                                ))}
+                            </div>
                         )}
 
                         {/* Actions: Speak & Translate - Only for bot messages */}
