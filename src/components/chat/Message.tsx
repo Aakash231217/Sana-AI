@@ -88,8 +88,8 @@ const Message = forwardRef<HTMLDivElement, MessageProps>(
         }, [message.text, message.isUserMessage]);
 
         // Clean message text (remove YouTube tokens)
-        const cleanMessageText = useMemo(() => {
-            if (typeof message.text !== "string") return message.text;
+        const cleanMessageText = useMemo((): string => {
+            if (typeof message.text !== "string") return "";
             return removeYouTubeTokens(message.text);
         }, [message.text]);
 
