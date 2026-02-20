@@ -592,3 +592,211 @@ model TestSubmission {
   @@index([testId])
   @@index([studentId])
 }
+
+// ============ SCHOOL MANAGEMENT ============
+
+model SchoolBranch {
+  id          String   @id @default(cuid())
+  name        String
+  code        String   @unique
+  address     String?
+  city        String?
+  state       String?
+  phone       String?
+  email       String?
+  principalName String?
+  isMain      Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  inquiries          SchoolInquiry[]
+  admissions         StudentAdmission[]
+  calendarEvents     CalendarEvent[]
+  studentDocuments   StudentDocument[]
+
+  @@index([isActive])
+}
+
+// ============ SCHOOL INQUIRIES ============
+
+model SchoolInquiry {
+  id              String        @id @default(cuid())
+  parentName      String
+  parentPhone     String
+  parentEmail     String?
+  studentName     String
+  classAppliedFor String
+  source          InquirySource @default(WALK_IN)
+  status          InquiryStatus @default(NEW)
+  notes           String?
+  followUpDate    DateTime?
+  branchId        String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  branch          SchoolBranch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([branchId])
+  @@index([createdAt])
+}
+
+enum InquirySource {
+  WALK_IN
+  PHONE
+  WEBSITE
+  REFERRAL
+  SOCIAL_MEDIA
+  OTHER
+}
+
+enum InquiryStatus {
+  NEW
+  CONTACTED
+  FOLLOW_UP
+  CONVERTED
+  CLOSED
+}
+
+// ============ STUDENT ADMISSION ============
+
+model StudentAdmission {
+  id                String          @id @default(cuid())
+  studentName       String
+  fatherName        String?
+  motherName        String?
+  dateOfBirth       DateTime?
+  gender            String?
+  classApplied      String
+  previousSchool    String?
+  address           String?
+  parentPhone       String
+  parentEmail       String?
+  bookingAmount     Float           @default(0)
+  bookingDate       DateTime?
+  bookingReceipt    String?
+  totalFees         Float           @default(0)
+  feesPaid          Float           @default(0)
+  feesPending       Float           @default(0)
+  admissionStatus   AdmissionStatus @default(PENDING)
+  admissionDate     DateTime?
+  admissionNumber   String?         @unique
+  branchId          String?
+  notes             String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  branch            SchoolBranch?   @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  feePayments       FeePayment[]
+
+  @@index([admissionStatus])
+  @@index([branchId])
+  @@index([createdAt])
+}
+
+enum AdmissionStatus {
+  PENDING
+  BOOKED
+  ADMITTED
+  REJECTED
+  CANCELLED
+}
+
+// ============ FEE PAYMENTS ============
+
+model FeePayment {
+  id              String           @id @default(cuid())
+  admissionId     String
+  amount          Float
+  paymentDate     DateTime         @default(now())
+  paymentMode     PaymentMode      @default(CASH)
+  receiptNumber   String?
+  remarks         String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  admission       StudentAdmission @relation(fields: [admissionId], references: [id], onDelete: Cascade)
+
+  @@index([admissionId])
+  @@index([paymentDate])
+}
+
+enum PaymentMode {
+  CASH
+  CHEQUE
+  ONLINE
+  UPI
+  CARD
+}
+
+// ============ CALENDAR / YEAR MASTER ============
+
+model CalendarEvent {
+  id          String        @id @default(cuid())
+  title       String
+  description String?
+  date        DateTime
+  endDate     DateTime?
+  eventType   EventType     @default(HOLIDAY)
+  isRecurring Boolean       @default(false)
+  branchId    String?
+  academicYear String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  branch      SchoolBranch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
+
+  @@index([date])
+  @@index([eventType])
+  @@index([branchId])
+  @@index([academicYear])
+}
+
+enum EventType {
+  HOLIDAY
+  EXAM
+  MEETING
+  FUNCTION
+  SPORTS
+  VACATION
+  OTHER
+}
+
+// ============ DOCUMENT MASTER ============
+
+model DocumentType {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  isRequired  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  documents   StudentDocument[]
+}
+
+model StudentDocument {
+  id              String       @id @default(cuid())
+  studentName     String
+  admissionNumber String?
+  documentTypeId  String
+  fileName        String
+  fileUrl         String
+  fileKey         String?
+  uploadedAt      DateTime     @default(now())
+  verifiedAt      DateTime?
+  isVerified      Boolean      @default(false)
+  remarks         String?
+  branchId        String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  documentType    DocumentType @relation(fields: [documentTypeId], references: [id], onDelete: Cascade)
+  branch          SchoolBranch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
+
+  @@index([studentName])
+  @@index([admissionNumber])
+  @@index([documentTypeId])
+  @@index([branchId])
+}

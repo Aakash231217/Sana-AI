@@ -5,6 +5,12 @@ import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import { api } from "@/trpc/react";
 import { ClassManagement } from "@/components/admin/classes/ClassManagement";
 import { MarksManagement } from "@/components/admin/MarksManagement";
+import { DailyActivities } from "@/components/admin/school/DailyActivities";
+import { InquiriesManagement } from "@/components/admin/school/InquiriesManagement";
+import { AdmissionsManagement } from "@/components/admin/school/AdmissionsManagement";
+import { CalendarYearMaster } from "@/components/admin/school/CalendarYearMaster";
+import { DocumentMaster } from "@/components/admin/school/DocumentMaster";
+import { BranchManagement } from "@/components/admin/school/BranchManagement";
 import {
   Users,
   MessageSquare,
@@ -25,9 +31,15 @@ import {
   Sparkles,
   GraduationCap,
   School,
+  ClipboardList,
+  PhoneIncoming,
+  UserPlus,
+  Calendar,
+  FileText,
+  Building2,
 } from "lucide-react";
 
-type TabType = "overview" | "classes" | "students" | "queries" | "flags" | "settings" | "marks";
+type TabType = "overview" | "classes" | "students" | "queries" | "flags" | "settings" | "marks" | "activities" | "inquiries" | "admissions" | "calendar" | "documents" | "branches";
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<TabType>("overview");
@@ -51,12 +63,18 @@ export default function AdminDashboard() {
           </div>
 
           {/* Navigation Tabs */}
-          <div className="flex gap-2 mb-8 border-b border-white/10 pb-4">
+          <div className="flex gap-2 mb-8 border-b border-white/10 pb-4 overflow-x-auto">
             {[
               { id: "overview", label: "Overview", icon: BarChart3 },
+              { id: "activities", label: "Daily Activities", icon: ClipboardList },
+              { id: "inquiries", label: "Inquiries", icon: PhoneIncoming },
+              { id: "admissions", label: "Admissions", icon: UserPlus },
               { id: "classes", label: "Classes", icon: School },
               { id: "students", label: "Students", icon: Users },
               { id: "marks", label: "Marks", icon: GraduationCap },
+              { id: "calendar", label: "Calendar", icon: Calendar },
+              { id: "documents", label: "Documents", icon: FileText },
+              { id: "branches", label: "Branches", icon: Building2 },
               { id: "queries", label: "Queries", icon: MessageSquare },
               { id: "flags", label: "Flags", icon: Flag },
               { id: "settings", label: "Settings", icon: Settings },
@@ -64,7 +82,7 @@ export default function AdminDashboard() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as TabType)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${activeTab === tab.id
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all whitespace-nowrap ${activeTab === tab.id
                   ? "bg-gradient-to-r from-pink-600 to-violet-600 text-white"
                   : "text-slate-400 hover:text-white hover:bg-white/5"
                   }`}
@@ -77,9 +95,15 @@ export default function AdminDashboard() {
 
           {/* Tab Content */}
           {activeTab === "overview" && <OverviewTab />}
+          {activeTab === "activities" && <DailyActivities />}
+          {activeTab === "inquiries" && <InquiriesManagement />}
+          {activeTab === "admissions" && <AdmissionsManagement />}
           {activeTab === "classes" && <ClassManagement />}
           {activeTab === "students" && <StudentsTab />}
           {activeTab === "marks" && <MarksManagement />}
+          {activeTab === "calendar" && <CalendarYearMaster />}
+          {activeTab === "documents" && <DocumentMaster />}
+          {activeTab === "branches" && <BranchManagement />}
           {activeTab === "queries" && <QueriesTab />}
           {activeTab === "flags" && <FlagsTab />}
           {activeTab === "settings" && <SettingsTab />}
