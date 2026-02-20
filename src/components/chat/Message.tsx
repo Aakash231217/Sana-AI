@@ -5,23 +5,24 @@ import { ExtendedMessage } from "@/types/message";
 import { Bot, User, Volume2, StopCircle, Languages } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import React, { forwardRef, useMemo } from "react";
-import { useSpeechSynthesis } from "@/hooks/use-speech-synthesis";
 import { api } from "@/trpc/react";
 import YouTubeEmbed from "./YouTubeEmbed";
+import { useContext } from "react";
+import { ChatContext } from "./ChatContext";
 
 // Helper function to extract YouTube video suggestions from text
 const extractYouTubeVideos = (text: string): { videoId: string; title: string }[] => {
     const youtubePattern = /\[YOUTUBE:([a-zA-Z0-9_-]{11}):([^\]]+)\]/g;
     const videos: { videoId: string; title: string }[] = [];
     let match;
-    
+
     while ((match = youtubePattern.exec(text)) !== null) {
         videos.push({
             videoId: match[1],
             title: match[2].trim(),
         });
     }
-    
+
     return videos;
 };
 
@@ -37,7 +38,7 @@ interface MessageProps {
 
 const Message = forwardRef<HTMLDivElement, MessageProps>(
     ({ message, isNextMessageSamePerson }, ref) => {
-        const { speak, isSpeaking, cancel } = useSpeechSynthesis();
+        const { isSpeaking, speakingId, speakMessage, stopSpeaking } = useContext(ChatContext);
         const [translatedText, setTranslatedText] = React.useState<string | null>(null);
         const [isTranslating, setIsTranslating] = React.useState(false);
         const [showTranslated, setShowTranslated] = React.useState(false);
@@ -65,8 +66,8 @@ const Message = forwardRef<HTMLDivElement, MessageProps>(
         };
 
         const onSpeak = () => {
-            if (isSpeaking) {
-                cancel();
+            if (isSpeaking && speakingId === message.id) {
+                stopSpeaking();
             } else {
                 const textToSpeak = (showTranslated && translatedText) ? translatedText : (typeof message.text === "string" ? message.text : "");
 
@@ -77,7 +78,7 @@ const Message = forwardRef<HTMLDivElement, MessageProps>(
                 const isKannada = /[\u0C80-\u0CFF]/.test(textToSpeak);
                 const lang = (showTranslated && translatedText) || isKannada ? "kn-IN" : "en";
 
-                speak(textToSpeak, lang);
+                speakMessage(textToSpeak, message.id, lang);
             }
         };
 

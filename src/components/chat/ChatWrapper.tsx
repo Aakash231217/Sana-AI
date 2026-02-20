@@ -2,8 +2,7 @@
 
 import { trpc } from "@/app/_trpc/client";
 import { ChatContextProvider } from "./ChatContext";
-import Messages from "./Messages";
-import ChatInput from "./ChatInput";
+import { ChatLayout } from "./ChatLayout";
 import { Loader2, XCircle } from "lucide-react";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/Button";
@@ -81,26 +80,7 @@ export const ChatWrapper = ({ fileId }: ChatWrapperProps) => {
 
     return (
         <ChatContextProvider fileId={fileId}>
-            <div className="relative h-[calc(100vh-8rem)] w-full flex flex-col items-center">
-                {/* Minimal Header */}
-                <div className="absolute top-0 left-0 w-full p-4 flex justify-between items-center z-10 pointer-events-none">
-                    <div className="flex items-center gap-2 pointer-events-auto bg-black/20 backdrop-blur-md rounded-full px-4 py-1.5 border border-white/5">
-                        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                        <span className="text-xs text-white/80 font-medium">Sana-AI Voice Active</span>
-                    </div>
-                </div>
-
-                {/* Main Content Area - Transparent / Glass */}
-                <div className="w-full max-w-4xl h-full flex flex-col relative z-0">
-                    <div className="flex-1 overflow-hidden">
-                        <Messages fileId={fileId} />
-                    </div>
-
-                    <div className="w-full p-4">
-                        <ChatInput />
-                    </div>
-                </div>
-            </div>
+            <ChatLayout fileId={fileId} />
         </ChatContextProvider>
     );
 };
