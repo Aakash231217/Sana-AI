@@ -1,0 +1,62 @@
+{
+    "version": "1.0.0",
+    "games": {
+        "G1_FocusFlow": {
+            "trials": 120,
+            "cycleMs": 1000,
+            "stimulusMs": 600,
+            "gapMs": 400,
+            "goCount": 90,
+            "noGoCount": 30
+        },
+        "G2_StopAndGo": {
+            "trials": 100,
+            "cycleMs": 1000,
+            "stimulusMs": 500,
+            "gapMs": 500,
+            "goCount": 70,
+            "noGoCount": 30
+        },
+        "G3_MemorySteps": {
+            "sequences": 15,
+            "gradeCaps": {
+                "3_4": 4,
+                "5_6": 5,
+                "7_8": 6,
+                "9_10": 7
+            }
+        },
+        "G4_SteadySpeed": {
+            "trials": 100,
+            "gapMs": 300,
+            "maxWaitMs": 2000
+        },
+        "G5_SwitchSmart": {
+            "trials": 120,
+            "cycleMs": 1000,
+            "blocks": 6,
+            "trialsPerBlock": 20,
+            "switches": 5
+        }
+    },
+    "fft": {
+        "bandRanges": {
+            "rL": [
+                0.01,
+                0.05
+            ],
+            "rM": [
+                0.05,
+                0.1
+            ],
+            "rH": [
+                0.1,
+                0.25
+            ]
+        },
+        "thresholds": {
+            "outlierRtMinMs": 150,
+            "outlierRtMaxMs": 3000
+        }
+    }
+}

@@ -221,21 +221,21 @@ model StudentProgress {
 }
 
 model Student {
-  id            String         @id @default(cuid())
-  name          String
-  email         String         @unique
-  sessionKey    String         @unique
-  isActive      Boolean        @default(true)
-  isFlagged     Boolean        @default(false)
-  flagReason    String?
-  totalQueries  Int            @default(0)
-  lastActive    DateTime       @default(now())
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  activityLogs  ActivityLog[]
-  careerInsight CareerInsight?
-  flags         StudentFlag[]
-  queries       StudentQuery[]
+  id              String           @id @default(cuid())
+  name            String
+  email           String           @unique
+  sessionKey      String           @unique
+  isActive        Boolean          @default(true)
+  isFlagged       Boolean          @default(false)
+  flagReason      String?
+  totalQueries    Int              @default(0)
+  lastActive      DateTime         @default(now())
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  activityLogs    ActivityLog[]
+  careerInsight   CareerInsight?
+  flags           StudentFlag[]
+  queries         StudentQuery[]
   testSubmissions TestSubmission[]
 
   @@index([sessionKey])
@@ -336,40 +336,39 @@ model AdminSettings {
 }
 
 model Class {
-  id        String          @id @default(cuid())
-  name      String          @unique
-  section   String?
-  createdAt DateTime        @default(now())
-  updatedAt DateTime        @updatedAt
+  id                 String              @id @default(cuid())
+  name               String              @unique
+  section            String?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
   students           StudentRecord[]
   teachingPlans      TeachingPlan[]
   attendanceSessions AttendanceSession[]
-
 }
 
 model StudentRecord {
-  id         String        @id @default(cuid())
-  name       String
-  email      String?
-  mobile     String?
-  admissionNumber String? @unique
-  rollNumber String?
-  classId    String
-  createdAt  DateTime      @default(now())
-  updatedAt  DateTime      @updatedAt
-  class      Class         @relation(fields: [classId], references: [id], onDelete: Cascade)
-  marks      SubjectMark[]
-  attendance AttendanceRecord[]
+  id              String             @id @default(cuid())
+  name            String
+  email           String?
+  mobile          String?
+  admissionNumber String?            @unique
+  rollNumber      String?
+  classId         String
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  class           Class              @relation(fields: [classId], references: [id], onDelete: Cascade)
+  marks           SubjectMark[]
+  attendance      AttendanceRecord[]
 
   @@unique([classId, rollNumber])
   @@index([classId])
 }
 
 model Exam {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  date      DateTime @default(now())
-  marks     SubjectMark[]
+  id    String        @id @default(cuid())
+  name  String        @unique
+  date  DateTime      @default(now())
+  marks SubjectMark[]
 
   @@index([name])
 }
@@ -387,11 +386,11 @@ model SubjectMark {
   updatedAt       DateTime      @updatedAt
   studentRecord   StudentRecord @relation(fields: [studentRecordId], references: [id], onDelete: Cascade)
 
+  @@unique([studentRecordId, subjectName, examId])
   @@index([studentRecordId])
   @@index([subjectName])
   @@index([examId])
   @@index([examType])
-  @@unique([studentRecordId, subjectName, examId])
 }
 
 enum UploadStatus {
@@ -452,7 +451,7 @@ enum FlagSeverity {
 // ============ TEACHER PLANNER ============
 
 model TeachingPlan {
-  id              String          @id @default(cuid())
+  id              String     @id @default(cuid())
   name            String
   fileId          String
   classId         String?
@@ -460,15 +459,15 @@ model TeachingPlan {
   endDate         DateTime
   totalDays       Int
   chaptersTocover Int[]
-  status          PlanStatus      @default(DRAFT)
+  status          PlanStatus @default(DRAFT)
   aiGeneratedPlan Json?
   notes           String?
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
 
-  file            File            @relation(fields: [fileId], references: [id], onDelete: Cascade)
-  class           Class?          @relation(fields: [classId], references: [id], onDelete: SetNull)
-  dailyPlans      DailyPlan[]
+  file       File        @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  class      Class?      @relation(fields: [classId], references: [id], onDelete: SetNull)
+  dailyPlans DailyPlan[]
 
   @@index([fileId])
   @@index([classId])
@@ -476,22 +475,22 @@ model TeachingPlan {
 }
 
 model DailyPlan {
-  id              String        @id @default(cuid())
-  teachingPlanId  String
-  dayNumber       Int
-  date            DateTime?
-  chapterNumber   Int
-  topicsTocover   String[]
-  objectives      String[]
-  activities      String[]
-  estimatedTime   Int
-  isCompleted     Boolean       @default(false)
-  completedAt     DateTime?
-  teacherNotes    String?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  id             String    @id @default(cuid())
+  teachingPlanId String
+  dayNumber      Int
+  date           DateTime?
+  chapterNumber  Int
+  topicsTocover  String[]
+  objectives     String[]
+  activities     String[]
+  estimatedTime  Int
+  isCompleted    Boolean   @default(false)
+  completedAt    DateTime?
+  teacherNotes   String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
-  teachingPlan    TeachingPlan  @relation(fields: [teachingPlanId], references: [id], onDelete: Cascade)
+  teachingPlan TeachingPlan @relation(fields: [teachingPlanId], references: [id], onDelete: Cascade)
 
   @@unique([teachingPlanId, dayNumber])
   @@index([teachingPlanId])
@@ -508,19 +507,19 @@ enum PlanStatus {
 // ============ ATTENDANCE SYSTEM ============
 
 model AttendanceSession {
-  id              String              @id @default(cuid())
-  classId         String
-  date            DateTime
-  subjectName     String?
-  totalPresent    Int                 @default(0)
-  totalAbsent     Int                 @default(0)
-  totalLate       Int                 @default(0)
-  notes           String?
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
+  id           String   @id @default(cuid())
+  classId      String
+  date         DateTime
+  subjectName  String?
+  totalPresent Int      @default(0)
+  totalAbsent  Int      @default(0)
+  totalLate    Int      @default(0)
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  class           Class               @relation(fields: [classId], references: [id], onDelete: Cascade)
-  records         AttendanceRecord[]
+  class   Class              @relation(fields: [classId], references: [id], onDelete: Cascade)
+  records AttendanceRecord[]
 
   @@unique([classId, date, subjectName])
   @@index([classId])
@@ -528,17 +527,17 @@ model AttendanceSession {
 }
 
 model AttendanceRecord {
-  id                  String              @id @default(cuid())
+  id                  String           @id @default(cuid())
   attendanceSessionId String
   studentRecordId     String
-  status              AttendanceStatus    @default(PRESENT)
+  status              AttendanceStatus @default(PRESENT)
   remarks             String?
-  markedAt            DateTime            @default(now())
-  createdAt           DateTime            @default(now())
-  updatedAt           DateTime            @updatedAt
+  markedAt            DateTime         @default(now())
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
 
-  attendanceSession   AttendanceSession   @relation(fields: [attendanceSessionId], references: [id], onDelete: Cascade)
-  studentRecord       StudentRecord       @relation(fields: [studentRecordId], references: [id], onDelete: Cascade)
+  attendanceSession AttendanceSession @relation(fields: [attendanceSessionId], references: [id], onDelete: Cascade)
+  studentRecord     StudentRecord     @relation(fields: [studentRecordId], references: [id], onDelete: Cascade)
 
   @@unique([attendanceSessionId, studentRecordId])
   @@index([attendanceSessionId])
@@ -556,24 +555,24 @@ enum AttendanceStatus {
 // ============ PERSONALITY TESTS ============
 
 model Test {
-  id          String     @id @default(cuid())
+  id          String   @id @default(cuid())
   title       String
   description String
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
   questions   Question[]
   submissions TestSubmission[]
 }
 
 model Question {
-  id        String   @id @default(cuid())
-  testId    String
-  text      String
-  section   String   // e.g., "A", "B" (Mapped to traits)
-  order     Int
-  
-  test      Test     @relation(fields: [testId], references: [id], onDelete: Cascade)
+  id      String @id @default(cuid())
+  testId  String
+  text    String
+  section String // e.g., "A", "B" (Mapped to traits)
+  order   Int
+
+  test Test @relation(fields: [testId], references: [id], onDelete: Cascade)
 
   @@index([testId])
 }
@@ -581,13 +580,13 @@ model Question {
 model TestSubmission {
   id          String   @id @default(cuid())
   testId      String
-  studentId   String?  // Optional, if we want to track who took it
-  answers     Json     // Store raw answers { questionId: value }
-  scores      Json     // Store calculated trait scores { extraversion: 20, ... }
+  studentId   String? // Optional, if we want to track who took it
+  answers     Json // Store raw answers { questionId: value }
+  scores      Json // Store calculated trait scores { extraversion: 20, ... }
   completedAt DateTime @default(now())
-  
-  test        Test     @relation(fields: [testId], references: [id], onDelete: Cascade)
-  student     Student? @relation(fields: [studentId], references: [id]) // Assuming Student model exists or linking to User
+
+  test    Test     @relation(fields: [testId], references: [id], onDelete: Cascade)
+  student Student? @relation(fields: [studentId], references: [id]) // Assuming Student model exists or linking to User
 
   @@index([testId])
   @@index([studentId])
@@ -596,24 +595,24 @@ model TestSubmission {
 // ============ SCHOOL MANAGEMENT ============
 
 model SchoolBranch {
-  id          String   @id @default(cuid())
-  name        String
-  code        String   @unique
-  address     String?
-  city        String?
-  state       String?
-  phone       String?
-  email       String?
+  id            String   @id @default(cuid())
+  name          String
+  code          String   @unique
+  address       String?
+  city          String?
+  state         String?
+  phone         String?
+  email         String?
   principalName String?
-  isMain      Boolean  @default(false)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  isMain        Boolean  @default(false)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  inquiries          SchoolInquiry[]
-  admissions         StudentAdmission[]
-  calendarEvents     CalendarEvent[]
-  studentDocuments   StudentDocument[]
+  inquiries        SchoolInquiry[]
+  admissions       StudentAdmission[]
+  calendarEvents   CalendarEvent[]
+  studentDocuments StudentDocument[]
 
   @@index([isActive])
 }
@@ -635,7 +634,7 @@ model SchoolInquiry {
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
-  branch          SchoolBranch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  branch SchoolBranch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
 
   @@index([status])
   @@index([branchId])
@@ -662,33 +661,33 @@ enum InquiryStatus {
 // ============ STUDENT ADMISSION ============
 
 model StudentAdmission {
-  id                String          @id @default(cuid())
-  studentName       String
-  fatherName        String?
-  motherName        String?
-  dateOfBirth       DateTime?
-  gender            String?
-  classApplied      String
-  previousSchool    String?
-  address           String?
-  parentPhone       String
-  parentEmail       String?
-  bookingAmount     Float           @default(0)
-  bookingDate       DateTime?
-  bookingReceipt    String?
-  totalFees         Float           @default(0)
-  feesPaid          Float           @default(0)
-  feesPending       Float           @default(0)
-  admissionStatus   AdmissionStatus @default(PENDING)
-  admissionDate     DateTime?
-  admissionNumber   String?         @unique
-  branchId          String?
-  notes             String?
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
+  id              String          @id @default(cuid())
+  studentName     String
+  fatherName      String?
+  motherName      String?
+  dateOfBirth     DateTime?
+  gender          String?
+  classApplied    String
+  previousSchool  String?
+  address         String?
+  parentPhone     String
+  parentEmail     String?
+  bookingAmount   Float           @default(0)
+  bookingDate     DateTime?
+  bookingReceipt  String?
+  totalFees       Float           @default(0)
+  feesPaid        Float           @default(0)
+  feesPending     Float           @default(0)
+  admissionStatus AdmissionStatus @default(PENDING)
+  admissionDate   DateTime?
+  admissionNumber String?         @unique
+  branchId        String?
+  notes           String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
 
-  branch            SchoolBranch?   @relation(fields: [branchId], references: [id], onDelete: SetNull)
-  feePayments       FeePayment[]
+  branch      SchoolBranch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  feePayments FeePayment[]
 
   @@index([admissionStatus])
   @@index([branchId])
@@ -706,17 +705,17 @@ enum AdmissionStatus {
 // ============ FEE PAYMENTS ============
 
 model FeePayment {
-  id              String           @id @default(cuid())
-  admissionId     String
-  amount          Float
-  paymentDate     DateTime         @default(now())
-  paymentMode     PaymentMode      @default(CASH)
-  receiptNumber   String?
-  remarks         String?
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  id            String      @id @default(cuid())
+  admissionId   String
+  amount        Float
+  paymentDate   DateTime    @default(now())
+  paymentMode   PaymentMode @default(CASH)
+  receiptNumber String?
+  remarks       String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
 
-  admission       StudentAdmission @relation(fields: [admissionId], references: [id], onDelete: Cascade)
+  admission StudentAdmission @relation(fields: [admissionId], references: [id], onDelete: Cascade)
 
   @@index([admissionId])
   @@index([paymentDate])
@@ -733,19 +732,19 @@ enum PaymentMode {
 // ============ CALENDAR / YEAR MASTER ============
 
 model CalendarEvent {
-  id          String        @id @default(cuid())
-  title       String
-  description String?
-  date        DateTime
-  endDate     DateTime?
-  eventType   EventType     @default(HOLIDAY)
-  isRecurring Boolean       @default(false)
-  branchId    String?
+  id           String    @id @default(cuid())
+  title        String
+  description  String?
+  date         DateTime
+  endDate      DateTime?
+  eventType    EventType @default(HOLIDAY)
+  isRecurring  Boolean   @default(false)
+  branchId     String?
   academicYear String?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
-  branch      SchoolBranch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  branch SchoolBranch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
 
   @@index([date])
   @@index([eventType])
@@ -773,30 +772,133 @@ model DocumentType {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  documents   StudentDocument[]
+  documents StudentDocument[]
 }
 
 model StudentDocument {
-  id              String       @id @default(cuid())
+  id              String    @id @default(cuid())
   studentName     String
   admissionNumber String?
   documentTypeId  String
   fileName        String
   fileUrl         String
   fileKey         String?
-  uploadedAt      DateTime     @default(now())
+  uploadedAt      DateTime  @default(now())
   verifiedAt      DateTime?
-  isVerified      Boolean      @default(false)
+  isVerified      Boolean   @default(false)
   remarks         String?
   branchId        String?
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  documentType    DocumentType @relation(fields: [documentTypeId], references: [id], onDelete: Cascade)
-  branch          SchoolBranch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  documentType DocumentType  @relation(fields: [documentTypeId], references: [id], onDelete: Cascade)
+  branch       SchoolBranch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
 
   @@index([studentName])
   @@index([admissionNumber])
   @@index([documentTypeId])
   @@index([branchId])
+}
+
+// ============ COGNITIVE ASSESSMENT SYSTEM ============
+
+model Child {
+  id        String   @id @default(uuid())
+  grade     Int
+  createdAt DateTime @default(now())
+
+  sessions AssessmentSession[]
+  profiles CognitiveProfile[]
+}
+
+enum SessionStatus {
+  IN_PROGRESS
+  COMPLETED
+  PARTIAL
+}
+
+model AssessmentSession {
+  id            String        @id @default(uuid())
+  childId       String
+  startedAt     DateTime      @default(now())
+  endedAt       DateTime?
+  status        SessionStatus @default(IN_PROGRESS)
+  appVersion    String?
+  configVersion String?
+
+  child       Child             @relation(fields: [childId], references: [id], onDelete: Cascade)
+  trials      AssessmentTrial[]
+  taskResults TaskResult[]
+  report      AssessmentReport?
+
+  @@index([childId])
+  @@index([status])
+}
+
+model AssessmentTrial {
+  id           String   @id @default(cuid())
+  sessionId    String
+  gameId       String // G1, G2, G3, G4, G5
+  trialIndex   Int
+  trialStartMs Float
+  stimulusType String
+  rtMs         Float?
+  responseCode String?
+  correct      Boolean?
+  flags        Json? // Array of strings or object
+
+  session AssessmentSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, gameId])
+}
+
+model TaskResult {
+  id        String @id @default(cuid())
+  sessionId String
+  gameId    String
+
+  // FFT Features
+  rL    Float?
+  rM    Float?
+  rH    Float?
+  fpeak Float?
+  slope Float?
+
+  // Performance Metrics
+  missRate       Float?
+  commissionRate Float?
+  accuracy       Float?
+  switchCostMs   Float?
+
+  session AssessmentSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, gameId])
+}
+
+model CognitiveProfile {
+  id             String  @id @default(cuid())
+  childId        String
+  // Indices
+  asi            Float?
+  ici            Float?
+  wme            Float?
+  pci            Float?
+  cfi            Float?
+  priorityDomain String?
+
+  createdAt DateTime @default(now())
+
+  child Child @relation(fields: [childId], references: [id], onDelete: Cascade)
+
+  @@index([childId])
+}
+
+model AssessmentReport {
+  id           String   @id @default(cuid())
+  sessionId    String   @unique
+  planJson     Json
+  teacherNotes String?
+  createdAt    DateTime @default(now())
+
+  session AssessmentSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 }
