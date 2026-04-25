@@ -145,23 +145,45 @@ export const POST = async (req: NextRequest) => {
         const pineconeIndex = pinecone.Index('sana-ai')
 
         // Create embedding for the query
+        // Build a richer query for short/vague messages so Pinecone returns relevant chunks
         let queryText = message
         if (isStartSession) {
             queryText = `Chapter ${updatedState.currentChapter} ${currentChapter?.title || ''} Topic ${updatedState.currentTopic} ${currentTopic?.title || ''}`
+        } else if (message.trim().split(/\s+/).length <= 3) {
+            // Short messages like "yes", "hi", "ready" produce bad embeddings.
+            // Enrich with current chapter/topic so Pinecone returns relevant content.
+            queryText = `${message} Chapter ${updatedState.currentChapter} ${currentChapter?.title || ''} Topic ${updatedState.currentTopic} ${currentTopic?.title || ''}`
+            console.log('[CHAT] Enriched short query:', queryText)
         }
 
         const queryEmbedding = await embeddings.embedQuery(queryText)
 
-        // Query Pinecone directly
-        console.log('[CHAT] Querying Pinecone with namespace:', file.id)
-        const queryResponse = await pineconeIndex
+        // Query Pinecone with chapter filter so we only get content from the current chapter
+        console.log('[CHAT] Querying Pinecone with namespace:', file.id, 'chapter filter:', updatedState.currentChapter)
+        let queryResponse = await pineconeIndex
             .namespace(file.id)
             .query({
                 vector: queryEmbedding,
-                topK: 10, // Increased from 4 to get more context
+                topK: 15,
                 includeValues: false,
                 includeMetadata: true,
+                filter: {
+                    chapterNumber: { '$eq': updatedState.currentChapter }
+                }
             })
+
+        // If chapter-filtered results are too few, fall back to unfiltered query
+        if (!queryResponse.matches || queryResponse.matches.length < 3) {
+            console.log('[CHAT] Too few chapter-filtered results, falling back to unfiltered query')
+            queryResponse = await pineconeIndex
+                .namespace(file.id)
+                .query({
+                    vector: queryEmbedding,
+                    topK: 15,
+                    includeValues: false,
+                    includeMetadata: true,
+                })
+        }
 
         console.log('[CHAT] Query response:', JSON.stringify(queryResponse, null, 2))
 
@@ -249,15 +271,18 @@ export const POST = async (req: NextRequest) => {
                 return `${pageNum}${sourceTag} ${r.pageContent}`
             }).join('\n\n')
 
+        // Get the LAST 6 messages (most recent conversation context)
         const prevMessages = isStartSession ? [] : await db.message.findMany({
             where: {
                 fileId,
             },
             orderBy: {
-                createdAt: 'asc',
+                createdAt: 'desc',
             },
             take: 6,
         })
+        // Reverse to chronological order for the prompt
+        prevMessages.reverse()
 
         const formattedPrevMessages = prevMessages.map((msg: { isUserMessage: boolean; text: string }) => ({
             role: msg.isUserMessage
@@ -272,37 +297,20 @@ export const POST = async (req: NextRequest) => {
 
 
         if (updatedState.learningPhase === 'introduction') {
-            // Build full chapter list for the overview
             const allChaptersList = chapters.map((c: { chapterNumber: number; title: string }) => `- Chapter ${c.chapterNumber}: ${c.title}`).join('\n')
 
             if (updatedState.currentChapter === 1) {
-                // BOOK INTRODUCTION (First time)
-                tutorPrompt = `\n\n🎓 AI TUTOR MODE: INTRODUCTION
-You are introducing the book "${file.name}".
-Available Chapters:
-${allChaptersList}
-
-Your Goal:
-1.  **Book Overview**: Briefly summarize what this whole book is about (1-2 sentences).
-2.  **Roadmap**: Mention that there are ${chapters.length} chapters to cover.
-3.  **Approve Start**: Introduce Chapter 1 (${updatedState.currentChapter}: ${currentChapter?.title}) and ask if they are ready to begin.
-Keep it structured and encouraging.
-CRITICAL: Do NOT use the "[TOPIC_COMPLETED]" token in this phase.`
+                tutorPrompt = `\n\nTUTOR CONTEXT: This is the student's first session with "${file.name}".
+Chapters: ${allChaptersList}
+Give a warm, brief (2-3 sentence) overview of the book, mention ${chapters.length} chapters, and ask if they're ready to start Chapter 1: ${currentChapter?.title}.
+Do NOT use "[TOPIC_COMPLETED]".`
             } else {
-                // CHAPTER INTRODUCTION (Subsequent chapters)
-                // Build topic list for this chapter
                 const topicList = currentChapter?.topics.map((t: { title: string }) => `- ${t.title}`).join('\n') || 'Topics not listed.'
 
-                tutorPrompt = `\n\n🎓 AI TUTOR MODE: CHAPTER INTRODUCTION
-Status: Student has just unlocked Chapter ${updatedState.currentChapter}: ${currentChapter?.title}.
-
-Your Goal:
-1.  **Congratulate**: Praise them for completing the previous chapter.
-2.  **Chapter Preview**: Briefly explain what Chapter ${updatedState.currentChapter} covers.
-3.  **Roadmap**: List the topics:
-${topicList}
-4.  **Start**: Ask if they are ready to begin the first topic.
-CRITICAL: Do NOT use the "[TOPIC_COMPLETED]" token in this phase.`
+                tutorPrompt = `\n\nTUTOR CONTEXT: Student just unlocked Chapter ${updatedState.currentChapter}: ${currentChapter?.title}.
+Topics: ${topicList}
+Briefly congratulate them, preview this chapter in 1-2 sentences, and ask if they're ready.
+Do NOT use "[TOPIC_COMPLETED]".`
             }
 
             // Update phase to learning after introduction
@@ -313,33 +321,24 @@ CRITICAL: Do NOT use the "[TOPIC_COMPLETED]" token in this phase.`
         }
         else if (updatedState.learningPhase === 'learning') {
             if (isStartSession) {
-                tutorPrompt = `\n\n🎓 AI TUTOR MODE: RESUMING SESSION
-Current Chapter: ${updatedState.currentChapter} - ${currentChapter?.title}
-Current Topic: ${currentTopic?.title || 'Overview'}
-
-Responsibility:
-1. Welcome the student back warmly.
-2. Summarize where they left off (Topic ${updatedState.currentTopic}: ${currentTopic?.title}).
-3. Ask if they are ready to continue.`
+                tutorPrompt = `\n\nTUTOR CONTEXT: Resuming session.
+Chapter ${updatedState.currentChapter}: ${currentChapter?.title}, Topic ${updatedState.currentTopic}: ${currentTopic?.title || 'Overview'}.
+Welcome them back briefly and ask if they're ready to continue.`
             } else {
                 const totalTopics = currentChapter?.topics.length || 0
                 const remainingTopicsCount = totalTopics - updatedState.currentTopic
 
-                tutorPrompt = `\n\n🎓 AI TUTOR MODE: TEACHING
-Current Chapter: ${updatedState.currentChapter} - ${currentChapter?.title}
+                tutorPrompt = `\n\nTUTOR CONTEXT: Teaching mode.
+Chapter ${updatedState.currentChapter}: ${currentChapter?.title}
 Current Topic: ${currentTopic?.title || 'Overview'}
-Topics Remaining in Chapter: ${remainingTopicsCount}
-Message Count: ${updatedState.messageCount}/8
+Topics remaining: ${remainingTopicsCount}
 
-Teaching Guidelines:
-1. Answer questions clearly and concisely
-2. Use examples and cite page numbers
-3. CRITICAL: Analyze understanding.
-   - ONLY IF mastered, start with: "[TOPIC_COMPLETED]"
-   - IF student asks to SKIP to next chapter:
-     - CHECK "Topics Remaining".
-     - If > 0, REFUSE. Say: "We need to cover ${remainingTopicsCount} more topics first."
-     - Do NOT emit [TOPIC_COMPLETED] for refused skips.`
+IMPORTANT RULES:
+- Answer the student's actual question directly using the book content below. Do NOT redirect them to a scripted lesson flow.
+- Use specific content, examples, and quotes from the book. Cite page numbers.
+- Be conversational and natural — respond to what they said, not a pre-planned curriculum.
+- If the student demonstrates clear mastery of the current topic, start your response with "[TOPIC_COMPLETED]".
+- If student asks to skip ahead and ${remainingTopicsCount} topics remain, gently say there are more topics to cover first.`
             }
         }
         else if (updatedState.learningPhase === 'review') {
@@ -406,38 +405,23 @@ Guidelines:
             messages: [
                 {
                     role: 'system',
-                    content: `You are an AI tutor helping students learn from their textbook. You guide them through chapters, answer questions, and help them master concepts before moving forward.${tutorPrompt}
+                    content: `You are a friendly, knowledgeable tutor helping a student learn from their textbook. Your personality is warm, patient, and encouraging — like a real teacher who genuinely cares.
+${tutorPrompt}
 
-Core Responsibilities:
-- Answer questions based on the PDF context
-- Always cite page numbers where you found information
-- Reference relevant images when available
-- Use markdown formatting for clarity
-- Keep responses concise but thorough
-- Be encouraging and supportive
+CRITICAL RULES:
+1. ALWAYS answer based on the actual book content provided below. Use specific details, quotes, and examples from the text.
+2. Cite page numbers naturally (e.g., "On page 7, the story says...").
+3. Keep responses concise (3-6 sentences for simple questions, longer only when explaining complex concepts).
+4. Be conversational — respond to what the student actually said. Do NOT give scripted lesson plans or numbered menu options unless they ask for a plan.
+5. If the student asks something and the book content is available, TEACH the actual content. Don't just describe what the book contains — explain it.
+6. If you truly cannot find the answer in the provided context, say so honestly.
+7. Reference relevant images when available.
 
-📹 YouTube Video Suggestions:
-When explaining complex topics or when a visual demonstration would help the student understand better, suggest relevant YouTube educational videos using this EXACT format:
-[YOUTUBE:VIDEO_ID:Video Title]
-
-Guidelines for suggesting videos:
-- Only suggest videos when they would genuinely help understanding (not for every response)
-- Use real, educational YouTube video IDs from reputable channels like Khan Academy, 3Blue1Brown, CrashCourse, Professor Dave Explains, Organic Chemistry Tutor, etc.
-- Match the video topic closely to what you're teaching
-- Suggest 1-2 videos maximum per response when appropriate
-- Place the YouTube token at the end of your explanation, after the main content
-- Example: [YOUTUBE:dQw4w9WgXcQ:Introduction to Calculus - Khan Academy]
-
-Common Educational Video IDs you can reference:
-- Khan Academy Math/Science videos
-- 3Blue1Brown for visual math explanations  
-- CrashCourse for history, science, literature
-- Veritasium for physics concepts
-- Numberphile for math topics`,
+YouTube: When a visual explanation would genuinely help, suggest ONE video using: [YOUTUBE:VIDEO_ID:Title]`,
                 },
                 {
                     role: 'user',
-                    content: `Answer the following question based on the provided context. Each piece of context is prefixed with its page number in square brackets like [Page 123]. Some context may be marked as [OCR], which means it was extracted using Optical Character Recognition from scanned pages. When you use information from the context, ALWAYS cite the page number(s) where you found it. If the answer cannot be found in the context, say "I cannot find information about that in the provided PDF."
+                    content: `Use the book content below to answer the student's question. Cite page numbers when referencing specific content. If the context doesn't cover their question, say so honestly.
         
   \n----------------\n
   

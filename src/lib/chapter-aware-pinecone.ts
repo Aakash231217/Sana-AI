@@ -34,8 +34,8 @@ export class ChapterAwarePineconeIndexer {
     async indexPDFWithChapters(
         fileId: string,
         pdfBuffer: Buffer,
-        chunkSize: number = 500,
-        chunkOverlap: number = 100
+        chunkSize: number = 1200,
+        chunkOverlap: number = 200
     ) {
         console.log('[CHAPTER_AWARE_INDEXER] Starting chapter-aware indexing...')
 
@@ -105,14 +105,44 @@ export class ChapterAwarePineconeIndexer {
             const embeddings = await this.embeddings.embedDocuments(chunks)
             console.log(`[CHAPTER_AWARE_INDEXER] Generated ${embeddings.length} embeddings`)
 
-            // For each chunk, determine which chapter it belongs to based on content
+            // Assign chunks to chapters based on page boundaries (not evenly divided)
+            // Build a page-position map: approximate character offset for each page
+            const pagePattern = /\f/g
+            const pageBreaks: number[] = [0]
+            let pageMatch
+            while ((pageMatch = pagePattern.exec(fullText)) !== null) {
+                pageBreaks.push(pageMatch.index)
+            }
+            pageBreaks.push(fullText.length)
+
+            // Helper: get page number for a character offset
+            const getPageForOffset = (offset: number): number => {
+                for (let p = 0; p < pageBreaks.length - 1; p++) {
+                    if (offset >= pageBreaks[p] && offset < pageBreaks[p + 1]) return p + 1
+                }
+                return pageBreaks.length - 1
+            }
+
+            // Helper: get chapter for a page number
+            const getChapterForPage = (page: number): typeof chapters[0] => {
+                // Find the chapter whose page range contains this page
+                for (let c = chapters.length - 1; c >= 0; c--) {
+                    if (page >= chapters[c].startPage) return chapters[c]
+                }
+                return chapters[0]
+            }
+
+            let chunkOffset = 0
             for (let i = 0; i < chunks.length; i++) {
                 const chunk = chunks[i]
                 const embedding = embeddings[i]
 
-                // Simple assignment: divide chunks evenly among chapters
-                const chapterIndex = Math.floor(i / (chunks.length / chapters.length))
-                const chapter = chapters[Math.min(chapterIndex, chapters.length - 1)]
+                // Find where this chunk starts in the full text
+                const chunkStart = fullText.indexOf(chunk, chunkOffset)
+                if (chunkStart !== -1) chunkOffset = chunkStart
+
+                const pageNum = getPageForOffset(chunkOffset)
+                const chapter = getChapterForPage(pageNum)
 
                 vectors.push({
                     id: `${fileId}-ch${chapter.chapterNumber}-chunk${i}`,
@@ -122,7 +152,7 @@ export class ChapterAwarePineconeIndexer {
                         fileId,
                         chapterNumber: chapter.chapterNumber,
                         chapterTitle: chapter.title,
-                        pageNumber: chapter.startPage,
+                        pageNumber: pageNum,
                         isChapterStart: false,
                         isTopicStart: false
                     }
