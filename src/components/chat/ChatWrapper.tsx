@@ -60,9 +60,9 @@ export const ChatWrapper = ({ fileId }: ChatWrapperProps) => {
                 <div className="flex-1 flex justify-center items-center flex-col mb-28">
                     <div className="flex flex-col items-center gap-2">
                         <XCircle className="h-8 w-8 text-red-500" />
-                        <h3 className="font-semibold text-xl text-white">Too many pages in PDF</h3>
+                        <h3 className="font-semibold text-xl text-white">Failed to process PDF</h3>
                         <p className="text-zinc-500 text-sm">
-                            Please <span className="font-medium">upgrade your plan</span> to upload larger PDFs.
+                            Something went wrong while processing this PDF. Please try uploading again.
                         </p>
                         <Link
                             href="/dashboard"
