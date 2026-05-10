@@ -24,9 +24,235 @@ import {
     Send,
     Lightbulb,
     FileText,
+    GraduationCap,
+    BookMarked,
+    HelpCircle,
+    ListChecks,
+    Globe2,
+    Award,
+    Wand2,
+    Printer,
 } from "lucide-react";
 
 type TabType = "plans" | "create" | "view";
+
+// ============ PRINT / PDF HELPERS ============
+// Use the browser's native print dialog (which gives "Save as PDF") to avoid
+// shipping a heavy PDF library. We render a clean, print-only HTML document
+// in a hidden iframe and trigger window.print().
+type PrintLessonInput = {
+    planName: string;
+    grade?: string | null;
+    subject?: string | null;
+    board?: string | null;
+    teachingStyle: string;
+    day: any;
+};
+
+function escHtml(s: unknown): string {
+    if (s === null || s === undefined) return "";
+    return String(s)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+}
+
+function ulHtml(items: string[] | undefined, ordered = false): string {
+    if (!items || items.length === 0) return "";
+    const tag = ordered ? "ol" : "ul";
+    return `<${tag}>${items.map((i) => `<li>${escHtml(i)}</li>`).join("")}</${tag}>`;
+}
+
+function lessonSectionHtml(planMeta: Omit<PrintLessonInput, "day">, day: any): string {
+    const examples = Array.isArray(day.workedExamples) ? day.workedExamples : [];
+    const examplesHtml = examples.length
+        ? `<div class="block">
+            <h3>Worked Examples</h3>
+            ${examples
+                .map(
+                    (ex: any, i: number) => `
+                <div class="example">
+                    <div class="example-title">Example ${i + 1}</div>
+                    ${ex.problem ? `<div><strong>Q:</strong> ${escHtml(ex.problem)}</div>` : ""}
+                    ${ex.solution ? `<div><strong>A:</strong> ${escHtml(ex.solution)}</div>` : ""}
+                    ${ex.reasoning ? `<div class="reasoning"><em>Reasoning:</em> ${escHtml(ex.reasoning)}</div>` : ""}
+                </div>`
+                )
+                .join("")}
+            </div>`
+        : "";
+
+    const styleLabel =
+        planMeta.teachingStyle === "SIMPLE"
+            ? "Simple Style"
+            : planMeta.teachingStyle === "DEEP"
+                ? "Deep Concept Style"
+                : "Balanced Style";
+
+    return `
+    <section class="lesson">
+        <header class="lesson-head">
+            <div class="title-row">
+                <div>
+                    <div class="plan-name">${escHtml(planMeta.planName)}</div>
+                    <h1>Day ${escHtml(day.dayNumber)} &middot; Lesson Plan</h1>
+                </div>
+                <div class="meta">
+                    ${planMeta.grade ? `<span>${escHtml(planMeta.grade)}</span>` : ""}
+                    ${planMeta.subject ? `<span>${escHtml(planMeta.subject)}</span>` : ""}
+                    ${planMeta.board ? `<span>${escHtml(planMeta.board)}</span>` : ""}
+                    <span class="style">${escHtml(styleLabel)}</span>
+                </div>
+            </div>
+            <div class="topics">
+                ${(day.topicsTocover || [])
+                    .map((t: string) => `<span class="chip">${escHtml(t)}</span>`)
+                    .join("")}
+            </div>
+        </header>
+
+        ${day.prerequisites && day.prerequisites.length
+            ? `<div class="block"><h3>Prerequisite Knowledge</h3>${ulHtml(day.prerequisites)}</div>`
+            : ""}
+
+        ${day.objectives && day.objectives.length
+            ? `<div class="block"><h3>Learning Objectives</h3>${ulHtml(day.objectives)}</div>`
+            : ""}
+
+        ${day.explanation
+            ? `<div class="block"><h3>Explanation</h3><p>${escHtml(day.explanation).replace(/\n/g, "<br/>")}</p></div>`
+            : ""}
+
+        ${day.conceptInsight
+            ? `<div class="block insight"><h3>Concept Insight (Why it works)</h3><p>${escHtml(day.conceptInsight)}</p></div>`
+            : ""}
+
+        ${examplesHtml}
+
+        ${day.activities && day.activities.length
+            ? `<div class="block"><h3>Suggested Activities</h3>${ulHtml(day.activities, true)}</div>`
+            : ""}
+
+        ${day.practiceQuestions && day.practiceQuestions.length
+            ? `<div class="block"><h3>Practice Questions</h3>${ulHtml(day.practiceQuestions, true)}</div>`
+            : ""}
+
+        ${day.quickTest && day.quickTest.length
+            ? `<div class="block test"><h3>Quick Test</h3>${ulHtml(day.quickTest, true)}</div>`
+            : ""}
+
+        ${day.realLifeApplication && day.realLifeApplication.length
+            ? `<div class="block"><h3>Real-Life Application</h3>${ulHtml(day.realLifeApplication)}</div>`
+            : ""}
+
+        ${day.finalOutcome
+            ? `<div class="block outcome"><h3>Final Outcome</h3><p>${escHtml(day.finalOutcome)}</p></div>`
+            : ""}
+
+        ${day.teacherNotes
+            ? `<div class="block tip"><h3>Teaching Tip</h3><p>${escHtml(day.teacherNotes)}</p></div>`
+            : ""}
+    </section>`;
+}
+
+function printLessonPlan(input: PrintLessonInput) {
+    printDocument(
+        `Lesson Plan – Day ${input.day.dayNumber}`,
+        lessonSectionHtml(
+            {
+                planName: input.planName,
+                grade: input.grade,
+                subject: input.subject,
+                board: input.board,
+                teachingStyle: input.teachingStyle,
+            },
+            input.day
+        )
+    );
+}
+
+function printWholePlan(input: { plan: any }) {
+    const plan = input.plan;
+    const sections = (plan.dailyPlans || [])
+        .map((d: any) =>
+            lessonSectionHtml(
+                {
+                    planName: plan.name,
+                    grade: plan.gradeLevel,
+                    subject: plan.subject,
+                    board: plan.board,
+                    teachingStyle: plan.teachingStyle,
+                },
+                d
+            )
+        )
+        .join("\n");
+    printDocument(`Lesson Plan Pack – ${plan.name}`, sections);
+}
+
+function printDocument(title: string, bodyHtml: string) {
+    if (typeof window === "undefined") return;
+    const html = `<!doctype html>
+<html><head><meta charset="utf-8"/><title>${escHtml(title)}</title>
+<style>
+    @page { size: A4; margin: 18mm 16mm; }
+    * { box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; color: #111; margin: 0; line-height: 1.45; font-size: 12pt; }
+    h1 { font-size: 18pt; margin: 0 0 4px 0; color: #5b21b6; }
+    h3 { font-size: 12pt; margin: 14px 0 6px 0; color: #1e293b; border-bottom: 1px solid #e2e8f0; padding-bottom: 3px; }
+    .lesson { padding-bottom: 8px; }
+    .lesson + .lesson { page-break-before: always; }
+    .lesson-head { border-bottom: 2px solid #db2777; padding-bottom: 8px; margin-bottom: 10px; }
+    .plan-name { color: #64748b; font-size: 10pt; text-transform: uppercase; letter-spacing: 0.05em; }
+    .title-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+    .meta { display: flex; gap: 6px; flex-wrap: wrap; }
+    .meta span { background: #f1f5f9; color: #334155; padding: 2px 8px; border-radius: 999px; font-size: 9pt; }
+    .meta span.style { background: #ede9fe; color: #5b21b6; }
+    .topics { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
+    .chip { background: #fce7f3; color: #be185d; padding: 2px 10px; border-radius: 999px; font-size: 10pt; }
+    .block { margin: 10px 0; page-break-inside: avoid; }
+    .block ul, .block ol { margin: 6px 0 6px 20px; padding: 0; }
+    .block li { margin: 3px 0; }
+    .insight { background: #fdf2f8; border-left: 4px solid #db2777; padding: 8px 12px; }
+    .test { background: #ecfdf5; border-left: 4px solid #10b981; padding: 8px 12px; }
+    .outcome { background: #f0fdf4; border-left: 4px solid #22c55e; padding: 8px 12px; }
+    .tip { background: #f5f3ff; border-left: 4px solid #7c3aed; padding: 8px 12px; }
+    .example { border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 10px; margin: 6px 0; }
+    .example-title { color: #7c3aed; font-weight: 600; font-size: 10pt; margin-bottom: 4px; }
+    .example .reasoning { color: #475569; font-size: 10pt; margin-top: 4px; }
+    p { margin: 4px 0; }
+</style>
+</head><body>${bodyHtml}</body></html>`;
+
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "fixed";
+    iframe.style.right = "0";
+    iframe.style.bottom = "0";
+    iframe.style.width = "0";
+    iframe.style.height = "0";
+    iframe.style.border = "0";
+    document.body.appendChild(iframe);
+    const doc = iframe.contentDocument || iframe.contentWindow?.document;
+    if (!doc) return;
+    doc.open();
+    doc.write(html);
+    doc.close();
+    const cleanup = () => {
+        setTimeout(() => {
+            if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+        }, 1000);
+    };
+    iframe.onload = () => {
+        try {
+            iframe.contentWindow?.focus();
+            iframe.contentWindow?.print();
+        } finally {
+            cleanup();
+        }
+    };
+}
 
 export default function PlannerPage() {
     const [activeTab, setActiveTab] = useState<TabType>("plans");
@@ -254,6 +480,37 @@ function PlansListTab({ onSelectPlan }: { onSelectPlan: (id: string) => void }) 
 }
 
 // ============ CREATE PLAN TAB ============
+type TeachingStyle = "SIMPLE" | "DEEP" | "BALANCED";
+
+const STYLE_OPTIONS: {
+    id: TeachingStyle;
+    title: string;
+    tagline: string;
+    description: string;
+}[] = [
+    {
+        id: "SIMPLE",
+        title: "Simple School Style",
+        tagline: "Fast learning",
+        description:
+            "Short, clear, step-by-step. Great when the child needs quick understanding and procedural fluency.",
+    },
+    {
+        id: "DEEP",
+        title: "Deep Concept Style",
+        tagline: "True understanding",
+        description:
+            "Builds the WHY using analogies and reasoning. Best for strong foundations and conceptual depth.",
+    },
+    {
+        id: "BALANCED",
+        title: "Balanced Style",
+        tagline: "Recommended",
+        description:
+            "Clarity + concept + real-life. The everyday classroom mix — clarity of school plus the depth of insight.",
+    },
+];
+
 function CreatePlanTab({ onPlanCreated }: { onPlanCreated: (id: string) => void }) {
     const [formData, setFormData] = useState({
         name: "",
@@ -263,6 +520,10 @@ function CreatePlanTab({ onPlanCreated }: { onPlanCreated: (id: string) => void 
         endDate: "",
         chaptersTocover: [] as number[],
         notes: "",
+        teachingStyle: "BALANCED" as TeachingStyle,
+        gradeLevel: "",
+        subject: "",
+        board: "",
     });
     const [isGenerating, setIsGenerating] = useState(false);
 
@@ -291,6 +552,10 @@ function CreatePlanTab({ onPlanCreated }: { onPlanCreated: (id: string) => void 
                 endDate: formData.endDate,
                 chaptersTocover: formData.chaptersTocover,
                 notes: formData.notes,
+                teachingStyle: formData.teachingStyle,
+                gradeLevel: formData.gradeLevel || undefined,
+                subject: formData.subject || undefined,
+                board: formData.board || undefined,
             });
 
             // Generate AI plan
@@ -332,6 +597,83 @@ function CreatePlanTab({ onPlanCreated }: { onPlanCreated: (id: string) => void 
                             onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
                             className="w-full px-4 py-3 bg-slate-800 border border-white/10 rounded-xl text-white placeholder:text-slate-500 focus:outline-none focus:border-pink-500"
                         />
+                    </div>
+
+                    {/* Teaching Style Picker */}
+                    <div>
+                        <label className="block text-sm text-slate-400 mb-2">Teaching Style *</label>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            {STYLE_OPTIONS.map((opt) => {
+                                const active = formData.teachingStyle === opt.id;
+                                return (
+                                    <button
+                                        type="button"
+                                        key={opt.id}
+                                        onClick={() =>
+                                            setFormData((prev) => ({ ...prev, teachingStyle: opt.id }))
+                                        }
+                                        className={`text-left p-4 rounded-xl border transition-all ${
+                                            active
+                                                ? "border-pink-500 bg-pink-500/10"
+                                                : "border-white/10 bg-slate-800 hover:bg-slate-700"
+                                        }`}
+                                    >
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className="text-white font-semibold">{opt.title}</span>
+                                            {opt.id === "BALANCED" && (
+                                                <span className="text-[10px] uppercase tracking-wide bg-violet-500/20 text-violet-300 px-2 py-0.5 rounded-full">
+                                                    Recommended
+                                                </span>
+                                            )}
+                                        </div>
+                                        <p className="text-pink-400 text-xs mb-2">{opt.tagline}</p>
+                                        <p className="text-slate-400 text-xs leading-relaxed">
+                                            {opt.description}
+                                        </p>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    {/* Grade / Subject / Board */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label className="block text-sm text-slate-400 mb-2">Grade / Class</label>
+                            <input
+                                type="text"
+                                placeholder="e.g., Class 4"
+                                value={formData.gradeLevel}
+                                onChange={(e) =>
+                                    setFormData((prev) => ({ ...prev, gradeLevel: e.target.value }))
+                                }
+                                className="w-full px-4 py-3 bg-slate-800 border border-white/10 rounded-xl text-white placeholder:text-slate-500 focus:outline-none focus:border-pink-500"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm text-slate-400 mb-2">Subject</label>
+                            <input
+                                type="text"
+                                placeholder="e.g., Mathematics"
+                                value={formData.subject}
+                                onChange={(e) =>
+                                    setFormData((prev) => ({ ...prev, subject: e.target.value }))
+                                }
+                                className="w-full px-4 py-3 bg-slate-800 border border-white/10 rounded-xl text-white placeholder:text-slate-500 focus:outline-none focus:border-pink-500"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm text-slate-400 mb-2">Board / Curriculum</label>
+                            <input
+                                type="text"
+                                placeholder="e.g., ICSE / CBSE"
+                                value={formData.board}
+                                onChange={(e) =>
+                                    setFormData((prev) => ({ ...prev, board: e.target.value }))
+                                }
+                                className="w-full px-4 py-3 bg-slate-800 border border-white/10 rounded-xl text-white placeholder:text-slate-500 focus:outline-none focus:border-pink-500"
+                            />
+                        </div>
                     </div>
 
                     {/* File Selection */}
@@ -494,6 +836,12 @@ function ViewPlanTab({ planId }: { planId: string }) {
     const regeneratePlan = api.planner.generateAIPlan.useMutation({
         onSuccess: () => refetch(),
     });
+    const regenerateDailyPlan = api.planner.regenerateDailyPlan.useMutation({
+        onSuccess: () => refetch(),
+    });
+    const updatePlanMetadata = api.planner.updatePlanMetadata.useMutation({
+        onSuccess: () => refetch(),
+    });
 
     const handleAskAI = async (dayNumber: number) => {
         if (!aiQuestion.trim()) return;
@@ -535,26 +883,72 @@ function ViewPlanTab({ planId }: { planId: string }) {
         <div className="space-y-6">
             {/* Plan Header */}
             <div className="bg-slate-900 rounded-2xl border border-white/10 p-6">
-                <div className="flex items-start justify-between mb-4">
+                <div className="flex items-start justify-between mb-4 gap-4 flex-wrap">
                     <div>
                         <h2 className="text-2xl font-bold text-white mb-2">{plan.name}</h2>
                         <p className="text-slate-400">
                             {plan.file.name}
                             {plan.class && ` • ${plan.class.name}`}
                         </p>
+                        <div className="flex flex-wrap gap-2 mt-3">
+                            {plan.gradeLevel && (
+                                <span className="text-xs bg-slate-800 text-slate-300 px-2 py-1 rounded-full flex items-center gap-1">
+                                    <GraduationCap className="w-3 h-3" /> {plan.gradeLevel}
+                                </span>
+                            )}
+                            {plan.subject && (
+                                <span className="text-xs bg-slate-800 text-slate-300 px-2 py-1 rounded-full flex items-center gap-1">
+                                    <BookMarked className="w-3 h-3" /> {plan.subject}
+                                </span>
+                            )}
+                            {plan.board && (
+                                <span className="text-xs bg-slate-800 text-slate-300 px-2 py-1 rounded-full">
+                                    {plan.board}
+                                </span>
+                            )}
+                            <span className="text-xs bg-violet-500/20 text-violet-300 px-2 py-1 rounded-full flex items-center gap-1">
+                                <Wand2 className="w-3 h-3" />
+                                {plan.teachingStyle === "SIMPLE" && "Simple Style"}
+                                {plan.teachingStyle === "DEEP" && "Deep Concept Style"}
+                                {plan.teachingStyle === "BALANCED" && "Balanced Style"}
+                            </span>
+                        </div>
                     </div>
-                    <button
-                        onClick={() => {
-                            if (confirm("Regenerate the AI plan? This will replace all daily plans.")) {
-                                regeneratePlan.mutate({ planId });
-                            }
-                        }}
-                        disabled={regeneratePlan.isPending}
-                        className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-xl hover:bg-slate-700"
-                    >
-                        <RefreshCw className={`w-4 h-4 ${regeneratePlan.isPending ? "animate-spin" : ""}`} />
-                        Regenerate Plan
-                    </button>
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <select
+                            value={plan.teachingStyle}
+                            onChange={(e) => {
+                                const newStyle = e.target.value as "SIMPLE" | "DEEP" | "BALANCED";
+                                updatePlanMetadata.mutate({ planId, teachingStyle: newStyle });
+                            }}
+                            disabled={updatePlanMetadata.isPending}
+                            className="px-3 py-2 bg-slate-800 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-pink-500"
+                        >
+                            <option value="SIMPLE">Simple Style</option>
+                            <option value="DEEP">Deep Concept Style</option>
+                            <option value="BALANCED">Balanced Style</option>
+                        </select>
+                        <button
+                            onClick={() => printWholePlan({ plan })}
+                            className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-xl hover:bg-slate-700"
+                            title="Print or save the whole plan as PDF"
+                        >
+                            <Printer className="w-4 h-4" />
+                            Print / PDF
+                        </button>
+                        <button
+                            onClick={() => {
+                                if (confirm("Regenerate the AI plan? This will replace all daily plans.")) {
+                                    regeneratePlan.mutate({ planId });
+                                }
+                            }}
+                            disabled={regeneratePlan.isPending}
+                            className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-xl hover:bg-slate-700"
+                        >
+                            <RefreshCw className={`w-4 h-4 ${regeneratePlan.isPending ? "animate-spin" : ""}`} />
+                            Regenerate Plan
+                        </button>
+                    </div>
                 </div>
 
                 {/* Progress Bar */}
@@ -683,6 +1077,56 @@ function ViewPlanTab({ planId }: { planId: string }) {
                             {/* Expanded Content */}
                             {expandedDay === day.dayNumber && (
                                 <div className="border-t border-white/5 p-6 space-y-6">
+                                    {/* Per-day style + print controls */}
+                                    <div className="flex flex-wrap items-center gap-2 justify-between">
+                                        <div className="flex items-center gap-2 text-xs text-slate-400">
+                                            <Wand2 className="w-3 h-3 text-violet-400" />
+                                            Regenerate this lesson in a different style:
+                                        </div>
+                                        <div className="flex flex-wrap gap-2 items-center">
+                                            {(["SIMPLE", "DEEP", "BALANCED"] as const).map((s) => (
+                                                <button
+                                                    key={s}
+                                                    onClick={() =>
+                                                        regenerateDailyPlan.mutate({
+                                                            dailyPlanId: day.id,
+                                                            styleOverride: s,
+                                                        })
+                                                    }
+                                                    disabled={regenerateDailyPlan.isPending}
+                                                    className="text-xs px-3 py-1 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 disabled:opacity-50"
+                                                >
+                                                    {regenerateDailyPlan.isPending &&
+                                                    regenerateDailyPlan.variables?.dailyPlanId === day.id &&
+                                                    regenerateDailyPlan.variables?.styleOverride === s
+                                                        ? "Generating..."
+                                                        : s === "SIMPLE"
+                                                            ? "Simple"
+                                                            : s === "DEEP"
+                                                                ? "Deep"
+                                                                : "Balanced"}
+                                                </button>
+                                            ))}
+                                            <button
+                                                onClick={() =>
+                                                    printLessonPlan({
+                                                        planName: plan.name,
+                                                        grade: plan.gradeLevel,
+                                                        subject: plan.subject,
+                                                        board: plan.board,
+                                                        teachingStyle: plan.teachingStyle,
+                                                        day,
+                                                    })
+                                                }
+                                                className="text-xs px-3 py-1 rounded-full bg-pink-500/20 hover:bg-pink-500/30 text-pink-300 flex items-center gap-1"
+                                                title="Print or save this lesson as PDF"
+                                            >
+                                                <Printer className="w-3 h-3" />
+                                                Print / PDF
+                                            </button>
+                                        </div>
+                                    </div>
+
                                     {/* Topics */}
                                     <div>
                                         <h4 className="text-sm font-medium text-slate-400 mb-3 flex items-center gap-2">
@@ -701,6 +1145,24 @@ function ViewPlanTab({ planId }: { planId: string }) {
                                         </div>
                                     </div>
 
+                                    {/* Prerequisites */}
+                                    {day.prerequisites && day.prerequisites.length > 0 && (
+                                        <div>
+                                            <h4 className="text-sm font-medium text-slate-400 mb-3 flex items-center gap-2">
+                                                <ListChecks className="w-4 h-4" />
+                                                Prerequisite Knowledge
+                                            </h4>
+                                            <ul className="space-y-2">
+                                                {day.prerequisites.map((p, i) => (
+                                                    <li key={i} className="flex items-start gap-2 text-slate-300 text-sm">
+                                                        <span className="text-pink-400">•</span>
+                                                        {p}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+
                                     {/* Objectives */}
                                     <div>
                                         <h4 className="text-sm font-medium text-slate-400 mb-3 flex items-center gap-2">
@@ -717,6 +1179,75 @@ function ViewPlanTab({ planId }: { planId: string }) {
                                         </ul>
                                     </div>
 
+                                    {/* Explanation */}
+                                    {day.explanation && (
+                                        <div>
+                                            <h4 className="text-sm font-medium text-slate-400 mb-3 flex items-center gap-2">
+                                                <FileText className="w-4 h-4" />
+                                                Explanation
+                                            </h4>
+                                            <p className="text-slate-300 text-sm whitespace-pre-wrap leading-relaxed">
+                                                {day.explanation}
+                                            </p>
+                                        </div>
+                                    )}
+
+                                    {/* Concept Insight */}
+                                    {day.conceptInsight && (
+                                        <div className="bg-pink-500/5 border border-pink-500/20 rounded-xl p-4">
+                                            <h4 className="text-sm font-medium text-pink-400 mb-2 flex items-center gap-2">
+                                                <Lightbulb className="w-4 h-4" />
+                                                Concept Insight (Why it works)
+                                            </h4>
+                                            <p className="text-slate-300 text-sm whitespace-pre-wrap">
+                                                {day.conceptInsight}
+                                            </p>
+                                        </div>
+                                    )}
+
+                                    {/* Worked Examples */}
+                                    {Array.isArray(day.workedExamples) && day.workedExamples.length > 0 && (
+                                        <div>
+                                            <h4 className="text-sm font-medium text-slate-400 mb-3 flex items-center gap-2">
+                                                <Sparkles className="w-4 h-4" />
+                                                Worked Examples
+                                            </h4>
+                                            <div className="space-y-3">
+                                                {(day.workedExamples as Array<{
+                                                    problem?: string;
+                                                    solution?: string;
+                                                    reasoning?: string;
+                                                }>).map((ex, i) => (
+                                                    <div
+                                                        key={i}
+                                                        className="bg-slate-800/60 rounded-xl p-4 border border-white/5"
+                                                    >
+                                                        <p className="text-violet-300 text-xs font-semibold mb-1">
+                                                            Example {i + 1}
+                                                        </p>
+                                                        {ex.problem && (
+                                                            <p className="text-white text-sm mb-2">
+                                                                <span className="text-slate-400">Q: </span>
+                                                                {ex.problem}
+                                                            </p>
+                                                        )}
+                                                        {ex.solution && (
+                                                            <p className="text-slate-300 text-sm mb-2">
+                                                                <span className="text-green-400">A: </span>
+                                                                {ex.solution}
+                                                            </p>
+                                                        )}
+                                                        {ex.reasoning && (
+                                                            <p className="text-slate-400 text-xs italic">
+                                                                Reasoning: {ex.reasoning}
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
                                     {/* Activities */}
                                     <div>
                                         <h4 className="text-sm font-medium text-slate-400 mb-3 flex items-center gap-2">
@@ -732,6 +1263,69 @@ function ViewPlanTab({ planId }: { planId: string }) {
                                             ))}
                                         </ul>
                                     </div>
+
+                                    {/* Practice Questions */}
+                                    {day.practiceQuestions && day.practiceQuestions.length > 0 && (
+                                        <div>
+                                            <h4 className="text-sm font-medium text-slate-400 mb-3 flex items-center gap-2">
+                                                <HelpCircle className="w-4 h-4" />
+                                                Practice Questions
+                                            </h4>
+                                            <ol className="space-y-2 list-decimal list-inside">
+                                                {day.practiceQuestions.map((q, i) => (
+                                                    <li key={i} className="text-slate-300 text-sm">
+                                                        {q}
+                                                    </li>
+                                                ))}
+                                            </ol>
+                                        </div>
+                                    )}
+
+                                    {/* Quick Test */}
+                                    {day.quickTest && day.quickTest.length > 0 && (
+                                        <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-4">
+                                            <h4 className="text-sm font-medium text-emerald-400 mb-3 flex items-center gap-2">
+                                                <Award className="w-4 h-4" />
+                                                Quick Test
+                                            </h4>
+                                            <ol className="space-y-2 list-decimal list-inside">
+                                                {day.quickTest.map((q, i) => (
+                                                    <li key={i} className="text-slate-300 text-sm">
+                                                        {q}
+                                                    </li>
+                                                ))}
+                                            </ol>
+                                        </div>
+                                    )}
+
+                                    {/* Real-Life Application */}
+                                    {day.realLifeApplication && day.realLifeApplication.length > 0 && (
+                                        <div>
+                                            <h4 className="text-sm font-medium text-slate-400 mb-3 flex items-center gap-2">
+                                                <Globe2 className="w-4 h-4" />
+                                                Real-Life Application
+                                            </h4>
+                                            <ul className="space-y-2">
+                                                {day.realLifeApplication.map((r, i) => (
+                                                    <li key={i} className="flex items-start gap-2 text-slate-300 text-sm">
+                                                        <span className="text-blue-400">•</span>
+                                                        {r}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+
+                                    {/* Final Outcome */}
+                                    {day.finalOutcome && (
+                                        <div className="bg-green-500/5 border border-green-500/20 rounded-xl p-4">
+                                            <h4 className="text-sm font-medium text-green-400 mb-2 flex items-center gap-2">
+                                                <CheckCircle2 className="w-4 h-4" />
+                                                Final Outcome
+                                            </h4>
+                                            <p className="text-slate-300 text-sm">{day.finalOutcome}</p>
+                                        </div>
+                                    )}
 
                                     {/* Teaching Tips */}
                                     {day.teacherNotes && (

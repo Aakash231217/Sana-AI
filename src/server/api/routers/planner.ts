@@ -9,6 +9,93 @@ const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
 });
 
+// ============ LESSON PLAN STYLE PROMPTS ============
+// Three distinct teaching styles, each producing the same JSON schema
+// so the UI can render uniformly. Each style emphasises a different
+// pedagogical focus (speed, depth, balance).
+
+const TEACHING_STYLE_BRIEFS: Record<
+    "SIMPLE" | "DEEP" | "BALANCED",
+    { name: string; brief: string; guidelines: string }
+> = {
+    SIMPLE: {
+        name: "Simple School Style (Fast Learning)",
+        brief:
+            "Goal is FAST LEARNING and EASY UNDERSTANDING. Keep explanations short, direct and child-friendly. Focus on accuracy and speed so the student can solve problems independently.",
+        guidelines: [
+            "- Use very simple language for the given grade",
+            "- Keep explanation short and step-by-step, no deep theory",
+            "- Worked examples must be easy to moderate",
+            "- Practice questions: 8-10, simple to moderate",
+            "- Quick test: 3 short questions",
+            "- Focus on procedural fluency over reasoning",
+        ].join("\n"),
+    },
+    DEEP: {
+        name: "Deep Concept Style",
+        brief:
+            "Goal is TRUE UNDERSTANDING, not just problem solving. Explain the WHY behind every concept using stories, analogies and real-life intuition. Build the concept step by step.",
+        guidelines: [
+            "- Lead with a Core Idea and the reasoning behind it",
+            "- Use intuitive analogies (story, picture, real-life)",
+            "- Build the concept step by step",
+            "- Worked examples must SHOW reasoning, not just answers",
+            "- Practice questions: 6-8, focused on thinking and 'why'/'how' style",
+            "- Concept-check questions probe understanding, not memorisation",
+            "- Avoid rote memorisation",
+        ].join("\n"),
+    },
+    BALANCED: {
+        name: "Balanced Style (Recommended)",
+        brief:
+            "Goal is CLEAR UNDERSTANDING + GOOD PROBLEM-SOLVING. Combine school-level clarity with conceptual insight and a real-life connection. Maintain engagement.",
+        guidelines: [
+            "- Clear short explanation, plus a brief 'why it works' insight",
+            "- Worked examples graded easy → moderate",
+            "- Practice questions: 8-10 with graded difficulty",
+            "- Quick test: 3 questions",
+            "- Always include 1-2 real-life applications",
+            "- Balance speed with understanding",
+        ].join("\n"),
+    },
+};
+
+function buildLessonPlanSchemaSpec(): string {
+    return `Each day MUST follow this JSON schema:
+{
+  "dayNumber": <number>,
+  "chapterNumber": <number>,
+  "topicName": "<short title of the lesson>",
+  "topicsTocover": ["<topic1>", "<topic2>"],
+  "objectives": ["Students will ..."],
+  "prerequisites": ["What student should already know"],
+  "explanation": "<simple, step-by-step explanation in 4-8 short lines>",
+  "conceptInsight": "<brief 'why it works' / core idea, may be empty for SIMPLE style>",
+  "workedExamples": [
+    { "problem": "<question>", "solution": "<answer>", "reasoning": "<short why>" }
+  ],
+  "activities": ["Activity 1", "Activity 2"],
+  "practiceQuestions": ["Q1", "Q2", "..."],
+  "quickTest": ["Q1", "Q2", "Q3"],
+  "realLifeApplication": ["Real-life example 1", "Real-life example 2"],
+  "finalOutcome": "<one sentence: what the student should now be able to do>",
+  "estimatedTime": 45,
+  "teachingTips": "<short tip for the teacher>"
+}`;
+}
+
+function buildPlannerSystemPrompt(style: "SIMPLE" | "DEEP" | "BALANCED"): string {
+    const s = TEACHING_STYLE_BRIEFS[style];
+    return [
+        "You are an expert primary/secondary school curriculum and lesson planner.",
+        `Teaching style: ${s.name}.`,
+        s.brief,
+        "Pedagogical guidelines:",
+        s.guidelines,
+        "Always respond with VALID JSON only. No markdown, no commentary.",
+    ].join("\n");
+}
+
 export const plannerRouter = createTRPCRouter({
     // Get all teaching plans
     getAllPlans: publicProcedure
@@ -120,6 +207,10 @@ export const plannerRouter = createTRPCRouter({
                 endDate: z.string(),
                 chaptersTocover: z.array(z.number()).min(1, "Select at least one chapter"),
                 notes: z.string().optional(),
+                teachingStyle: z.enum(["SIMPLE", "DEEP", "BALANCED"]).default("BALANCED"),
+                gradeLevel: z.string().optional(),
+                subject: z.string().optional(),
+                board: z.string().optional(),
             })
         )
         .mutation(async ({ ctx, input }) => {
@@ -185,6 +276,10 @@ export const plannerRouter = createTRPCRouter({
                     chaptersTocover: input.chaptersTocover,
                     status: "DRAFT",
                     notes: input.notes,
+                    teachingStyle: input.teachingStyle,
+                    gradeLevel: input.gradeLevel,
+                    subject: input.subject,
+                    board: input.board,
                 },
             });
 
@@ -263,64 +358,87 @@ export const plannerRouter = createTRPCRouter({
                 contextContent += `\n\nContent Preview:\n${chapterContext || chapter.content?.substring(0, 1000) || "No content available"}`;
             }
 
-            // Generate AI plan
-            const prompt = `You are an expert educational planner. Based on the following course content, create a detailed day-by-day teaching plan.
+            // Generate AI plan — style-aware lesson plans
+            const style = (plan.teachingStyle ?? "BALANCED") as
+                | "SIMPLE"
+                | "DEEP"
+                | "BALANCED";
+            const styleBrief = TEACHING_STYLE_BRIEFS[style];
+            const schemaSpec = buildLessonPlanSchemaSpec();
 
-COURSE CONTENT:
+            const audienceLine = [
+                plan.gradeLevel ? `Grade level: ${plan.gradeLevel}` : null,
+                plan.subject ? `Subject: ${plan.subject}` : null,
+                plan.board ? `Board/Curriculum: ${plan.board}` : null,
+            ]
+                .filter(Boolean)
+                .join("\n");
+
+            const prompt = `You are creating a complete day-by-day LESSON PLAN series for a teacher.
+
+TEACHING STYLE: ${styleBrief.name}
+${styleBrief.brief}
+
+STYLE GUIDELINES:
+${styleBrief.guidelines}
+
+${audienceLine ? `AUDIENCE:\n${audienceLine}\n` : ""}
+COURSE CONTENT (from the teacher's uploaded book):
 ${contextContent}
 
 CONSTRAINTS:
 - Total teaching days available: ${plan.totalDays}
 - Chapters to cover: ${chapters.map((c) => `Chapter ${c.chapterNumber}: ${c.title}`).join(", ")}
 - Start date: ${plan.startDate.toISOString().split("T")[0]}
+${plan.notes ? `- Teacher notes: ${plan.notes}` : ""}
 
 REQUIREMENTS:
-1. Distribute content logically across ${plan.totalDays} days
-2. Each day should have clear learning objectives
-3. Include suggested activities (discussions, exercises, examples)
-4. Consider topic dependencies - teach prerequisites first
-5. Allow time for review and practice
-6. Keep daily workload balanced
+1. Distribute content logically across ${plan.totalDays} days, prerequisites first.
+2. Each day MUST be a complete, ready-to-teach lesson plan.
+3. Use ONLY content grounded in the course material above.
+4. Keep daily workload balanced (one focused lesson per day).
+5. Match the chosen TEACHING STYLE in tone, depth and question types.
 
-Respond with a JSON array where each element represents one day:
-[
-  {
-    "dayNumber": 1,
-    "chapterNumber": 1,
-    "topicsTocover": ["Topic title 1", "Topic title 2"],
-    "objectives": ["Students will understand X", "Students will be able to Y"],
-    "activities": ["Introduction lecture", "Group discussion on concept A", "Practice problems"],
-    "estimatedTime": 45,
-    "teachingTips": "Start with a real-world example to engage students"
-  }
-]
+OUTPUT FORMAT:
+Respond with a JSON object of the shape:
+{ "days": [ <day object>, <day object>, ... ] }
 
-Return ONLY the JSON array, no other text.`;
+${schemaSpec}
+
+Return ONLY the JSON object. No prose, no markdown fences.`;
 
             const completion = await openai.chat.completions.create({
                 model: "gpt-4o-mini",
                 messages: [
                     {
                         role: "system",
-                        content:
-                            "You are an expert curriculum planner. Generate practical, detailed teaching plans based on actual course content. Always respond with valid JSON.",
+                        content: buildPlannerSystemPrompt(style),
                     },
                     { role: "user", content: prompt },
                 ],
                 temperature: 0.7,
-                max_tokens: 4000,
+                max_tokens: 6000,
+                response_format: { type: "json_object" },
             });
 
-            const responseText = completion.choices[0]?.message?.content || "[]";
+            const responseText = completion.choices[0]?.message?.content || "{}";
 
-            let aiPlan;
+            let parsed: any;
+            let days: any[];
             try {
-                // Clean the response - remove markdown code blocks if present
-                const cleanedResponse = responseText
+                const cleaned = responseText
                     .replace(/```json\n?/g, "")
                     .replace(/```\n?/g, "")
                     .trim();
-                aiPlan = JSON.parse(cleanedResponse);
+                parsed = JSON.parse(cleaned);
+                days = Array.isArray(parsed)
+                    ? parsed
+                    : Array.isArray(parsed?.days)
+                        ? parsed.days
+                        : [];
+                if (!Array.isArray(days) || days.length === 0) {
+                    throw new Error("AI response contained no days");
+                }
             } catch (e) {
                 console.error("Failed to parse AI response:", responseText);
                 throw new TRPCError({
@@ -338,11 +456,19 @@ Return ONLY the JSON array, no other text.`;
             const startDate = new Date(plan.startDate);
             let currentDate = new Date(startDate);
 
-            for (const day of aiPlan) {
+            for (const day of days) {
                 // Skip weekends
                 while (currentDate.getDay() === 0 || currentDate.getDay() === 6) {
                     currentDate.setDate(currentDate.getDate() + 1);
                 }
+
+                const topics = Array.isArray(day.topicsTocover) ? day.topicsTocover : [];
+                const topicName = day.topicName as string | undefined;
+                const finalTopics = topics.length > 0
+                    ? topics
+                    : topicName
+                        ? [topicName]
+                        : [];
 
                 await ctx.db.dailyPlan.create({
                     data: {
@@ -350,11 +476,25 @@ Return ONLY the JSON array, no other text.`;
                         dayNumber: day.dayNumber,
                         date: new Date(currentDate),
                         chapterNumber: day.chapterNumber,
-                        topicsTocover: day.topicsTocover || [],
-                        objectives: day.objectives || [],
-                        activities: day.activities || [],
+                        topicsTocover: finalTopics,
+                        objectives: Array.isArray(day.objectives) ? day.objectives : [],
+                        activities: Array.isArray(day.activities) ? day.activities : [],
                         estimatedTime: day.estimatedTime || 45,
                         teacherNotes: day.teachingTips || null,
+                        prerequisites: Array.isArray(day.prerequisites) ? day.prerequisites : [],
+                        explanation: day.explanation || null,
+                        conceptInsight: day.conceptInsight || null,
+                        workedExamples: Array.isArray(day.workedExamples)
+                            ? day.workedExamples
+                            : null,
+                        practiceQuestions: Array.isArray(day.practiceQuestions)
+                            ? day.practiceQuestions
+                            : [],
+                        quickTest: Array.isArray(day.quickTest) ? day.quickTest : [],
+                        realLifeApplication: Array.isArray(day.realLifeApplication)
+                            ? day.realLifeApplication
+                            : [],
+                        finalOutcome: day.finalOutcome || null,
                     },
                 });
 
@@ -365,12 +505,12 @@ Return ONLY the JSON array, no other text.`;
             await ctx.db.teachingPlan.update({
                 where: { id: plan.id },
                 data: {
-                    aiGeneratedPlan: aiPlan,
+                    aiGeneratedPlan: parsed,
                     status: "DRAFT",
                 },
             });
 
-            return { success: true, daysGenerated: aiPlan.length };
+            return { success: true, daysGenerated: days.length };
         }),
 
     // Update plan status
@@ -418,6 +558,13 @@ Return ONLY the JSON array, no other text.`;
                 activities: z.array(z.string()).optional(),
                 estimatedTime: z.number().optional(),
                 teacherNotes: z.string().optional(),
+                prerequisites: z.array(z.string()).optional(),
+                explanation: z.string().optional(),
+                conceptInsight: z.string().optional(),
+                practiceQuestions: z.array(z.string()).optional(),
+                quickTest: z.array(z.string()).optional(),
+                realLifeApplication: z.array(z.string()).optional(),
+                finalOutcome: z.string().optional(),
             })
         )
         .mutation(async ({ ctx, input }) => {
@@ -425,6 +572,160 @@ Return ONLY the JSON array, no other text.`;
             return ctx.db.dailyPlan.update({
                 where: { id: dailyPlanId },
                 data: updateData,
+            });
+        }),
+
+    // Update plan-level metadata (style, grade, subject)
+    updatePlanMetadata: publicProcedure
+        .input(
+            z.object({
+                planId: z.string(),
+                teachingStyle: z.enum(["SIMPLE", "DEEP", "BALANCED"]).optional(),
+                gradeLevel: z.string().optional(),
+                subject: z.string().optional(),
+                board: z.string().optional(),
+                notes: z.string().optional(),
+            })
+        )
+        .mutation(async ({ ctx, input }) => {
+            const { planId, ...data } = input;
+            return ctx.db.teachingPlan.update({
+                where: { id: planId },
+                data,
+            });
+        }),
+
+    // Regenerate the FULL lesson plan for a single day (style-aware).
+    // Useful when a teacher wants to deepen or simplify just one lesson.
+    regenerateDailyPlan: publicProcedure
+        .input(
+            z.object({
+                dailyPlanId: z.string(),
+                styleOverride: z.enum(["SIMPLE", "DEEP", "BALANCED"]).optional(),
+            })
+        )
+        .mutation(async ({ ctx, input }) => {
+            const dailyPlan = await ctx.db.dailyPlan.findUnique({
+                where: { id: input.dailyPlanId },
+                include: {
+                    teachingPlan: {
+                        include: { file: true },
+                    },
+                },
+            });
+            if (!dailyPlan) {
+                throw new TRPCError({ code: "NOT_FOUND", message: "Daily plan not found" });
+            }
+            const plan = dailyPlan.teachingPlan;
+            const style = (input.styleOverride ?? plan.teachingStyle ?? "BALANCED") as
+                | "SIMPLE"
+                | "DEEP"
+                | "BALANCED";
+
+            // Pull tightly-scoped context for this day's topics
+            const embeddings = new OpenAIEmbeddings({
+                openAIApiKey: process.env.OPENAI_API_KEY,
+            });
+            const pinecone = await getPineconeClient();
+            const pineconeIndex = pinecone.Index("sana-ai");
+
+            const queryText = `Chapter ${dailyPlan.chapterNumber}: ${dailyPlan.topicsTocover.join(", ")}`;
+            const queryEmbedding = await embeddings.embedQuery(queryText);
+            const results = await pineconeIndex.namespace(plan.fileId).query({
+                vector: queryEmbedding,
+                topK: 8,
+                includeMetadata: true,
+                filter: { chapterNumber: dailyPlan.chapterNumber },
+            });
+            const context = results.matches
+                ?.map((m) => m.metadata?.text)
+                .filter(Boolean)
+                .join("\n\n") || "";
+
+            const styleBrief = TEACHING_STYLE_BRIEFS[style];
+            const schemaSpec = buildLessonPlanSchemaSpec();
+            const audienceLine = [
+                plan.gradeLevel ? `Grade level: ${plan.gradeLevel}` : null,
+                plan.subject ? `Subject: ${plan.subject}` : null,
+                plan.board ? `Board/Curriculum: ${plan.board}` : null,
+            ]
+                .filter(Boolean)
+                .join("\n");
+
+            const prompt = `Create ONE complete lesson plan for the following topic.
+
+TEACHING STYLE: ${styleBrief.name}
+${styleBrief.brief}
+
+STYLE GUIDELINES:
+${styleBrief.guidelines}
+
+${audienceLine ? `AUDIENCE:\n${audienceLine}\n` : ""}
+LESSON CONTEXT:
+- Chapter: ${dailyPlan.chapterNumber}
+- Topics: ${dailyPlan.topicsTocover.join(", ") || "(infer from content)"}
+- Day number in plan: ${dailyPlan.dayNumber}
+
+COURSE CONTENT:
+${context}
+
+OUTPUT:
+Return ONE JSON object that matches this schema (no array, no markdown):
+${schemaSpec}`;
+
+            const completion = await openai.chat.completions.create({
+                model: "gpt-4o-mini",
+                messages: [
+                    { role: "system", content: buildPlannerSystemPrompt(style) },
+                    { role: "user", content: prompt },
+                ],
+                temperature: 0.7,
+                max_tokens: 2500,
+                response_format: { type: "json_object" },
+            });
+
+            const responseText = completion.choices[0]?.message?.content || "{}";
+            let day: any;
+            try {
+                day = JSON.parse(
+                    responseText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim()
+                );
+            } catch (e) {
+                console.error("Failed to parse AI lesson:", responseText);
+                throw new TRPCError({
+                    code: "INTERNAL_SERVER_ERROR",
+                    message: "Failed to regenerate lesson. Please try again.",
+                });
+            }
+
+            const topics = Array.isArray(day.topicsTocover) ? day.topicsTocover : [];
+            const finalTopics = topics.length > 0
+                ? topics
+                : day.topicName
+                    ? [day.topicName]
+                    : dailyPlan.topicsTocover;
+
+            return ctx.db.dailyPlan.update({
+                where: { id: dailyPlan.id },
+                data: {
+                    topicsTocover: finalTopics,
+                    objectives: Array.isArray(day.objectives) ? day.objectives : [],
+                    activities: Array.isArray(day.activities) ? day.activities : [],
+                    estimatedTime: day.estimatedTime || dailyPlan.estimatedTime,
+                    teacherNotes: day.teachingTips || dailyPlan.teacherNotes,
+                    prerequisites: Array.isArray(day.prerequisites) ? day.prerequisites : [],
+                    explanation: day.explanation || null,
+                    conceptInsight: day.conceptInsight || null,
+                    workedExamples: Array.isArray(day.workedExamples) ? day.workedExamples : null,
+                    practiceQuestions: Array.isArray(day.practiceQuestions)
+                        ? day.practiceQuestions
+                        : [],
+                    quickTest: Array.isArray(day.quickTest) ? day.quickTest : [],
+                    realLifeApplication: Array.isArray(day.realLifeApplication)
+                        ? day.realLifeApplication
+                        : [],
+                    finalOutcome: day.finalOutcome || null,
+                },
             });
         }),
 

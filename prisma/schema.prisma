@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model QuizAttempt {
@@ -451,7 +452,7 @@ enum FlagSeverity {
 // ============ TEACHER PLANNER ============
 
 model TeachingPlan {
-  id              String     @id @default(cuid())
+  id              String        @id @default(cuid())
   name            String
   fileId          String
   classId         String?
@@ -459,11 +460,16 @@ model TeachingPlan {
   endDate         DateTime
   totalDays       Int
   chaptersTocover Int[]
-  status          PlanStatus @default(DRAFT)
+  status          PlanStatus    @default(DRAFT)
   aiGeneratedPlan Json?
   notes           String?
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
+  // Lesson-plan teaching style and curriculum metadata
+  teachingStyle   TeachingStyle @default(BALANCED)
+  gradeLevel      String?
+  subject         String?
+  board           String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
   file       File        @relation(fields: [fileId], references: [id], onDelete: Cascade)
   class      Class?      @relation(fields: [classId], references: [id], onDelete: SetNull)
@@ -487,6 +493,15 @@ model DailyPlan {
   isCompleted    Boolean   @default(false)
   completedAt    DateTime?
   teacherNotes   String?
+  // Structured lesson-plan fields
+  prerequisites       String[] @default([])
+  explanation         String?
+  conceptInsight      String?
+  workedExamples      Json?
+  practiceQuestions   String[] @default([])
+  quickTest           String[] @default([])
+  realLifeApplication String[] @default([])
+  finalOutcome        String?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -502,6 +517,12 @@ enum PlanStatus {
   ACTIVE
   COMPLETED
   PAUSED
+}
+
+enum TeachingStyle {
+  SIMPLE
+  DEEP
+  BALANCED
 }
 
 // ============ ATTENDANCE SYSTEM ============
