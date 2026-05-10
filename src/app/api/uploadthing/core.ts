@@ -14,7 +14,7 @@ const f = createUploadthing()
 const utapi = new UTApi()
 
 export const ourFileRouter = {
-    freePlanUploader: f({ pdf: { maxFileSize: '128MB' } })
+    freePlanUploader: f({ pdf: { maxFileSize: '512MB' } })
         .input(z.object({ subjectId: z.string().optional().nullable(), subfolderId: z.string().optional().nullable() }).optional())
         .middleware(async ({ input }) => {
             return { subjectId: input?.subjectId, subfolderId: input?.subfolderId }
