@@ -49,7 +49,7 @@ export const Navbar = () => {
               </div>
             </div>
             <span className="text-2xl font-bold tracking-tight text-white">
-              Sana-<span className="text-brand-primary">AI</span>
+              Sana-<span className="text-brand-primary">Sigma</span>
             </span>
           </Link>
 

@@ -32,7 +32,7 @@ export default function LoginPage() {
         >
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-white mb-2">Teacher Portal</h1>
-            <p className="text-slate-400 text-sm">Enter your credentials to access the Sana-AI Grid.</p>
+            <p className="text-slate-400 text-sm">Enter your credentials to access the Sana-Sigma Grid.</p>
             <div className="mt-2 text-xs bg-brand-primary/10 text-brand-primary py-1 px-3 rounded-full inline-block">
               Default: aakash / sanaai
             </div>

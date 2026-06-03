@@ -28,7 +28,7 @@ export const AIFeature: React.FC<AIFeatureProps> = ({ onStartChat }) => {
                       <Bot size={20} className="text-white" />
                     </div>
                     <div>
-                      <h3 className="text-white font-bold">Sana-AI</h3>
+                      <h3 className="text-white font-bold">Sana-Sigma</h3>
                       <p className="text-xs text-brand-primary flex items-center gap-1">
                         <span className="w-1.5 h-1.5 bg-brand-primary rounded-full animate-pulse" /> 
                         Always Active
@@ -88,7 +88,7 @@ export const AIFeature: React.FC<AIFeatureProps> = ({ onStartChat }) => {
               <span>Meet Your New Tutor</span>
             </div>
             <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
-              <span className="text-brand-glow">Sana-AI</span> doesn't just answer.<br/>It teaches.
+              <span className="text-brand-glow">Sana-Sigma</span> doesn't just answer.<br/>It teaches.
             </h2>
             <p className="text-lg text-slate-400 mb-8 leading-relaxed">
               Unlike generic chatbots, Sana is aware of your specific school curriculum. 

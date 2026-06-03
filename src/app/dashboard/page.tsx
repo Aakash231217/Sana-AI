@@ -11,7 +11,7 @@ export default function Dashboard() {
         <Navbar />
         <div className="max-w-6xl mx-auto">
           <h1 className="text-4xl font-bold text-white mb-2">Welcome back, Teacher.</h1>
-          <p className="text-slate-400 mb-12">Here is your Sana-AI learning grid.</p>
+          <p className="text-slate-400 mb-12">Here is your Sana-Sigma learning grid.</p>
 
           <div className="grid md:grid-cols-3 gap-6">
             <DashboardCard
@@ -45,7 +45,7 @@ export default function Dashboard() {
             <DashboardCard
               title="Admin Panel"
               icon={<Shield />}
-              desc="Monitor students and manage Sana-AI."
+              desc="Monitor students and manage Sana-Sigma."
               href="/admin"
               color="bg-red-600"
             />

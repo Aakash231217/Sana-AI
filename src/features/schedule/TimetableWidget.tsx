@@ -24,7 +24,7 @@ export const TimetableWidget = () => {
             <div className="lg:col-span-2 flex flex-col justify-center">
               <h2 className="text-4xl font-bold text-white mb-6">Your Day at a Glance</h2>
               <p className="text-blue-100 text-lg mb-8 opacity-90">
-                Sana-AI organizes your day automatically. Join virtual classes with one click or find your physical classroom instantly.
+                Sana-Sigma organizes your day automatically. Join virtual classes with one click or find your physical classroom instantly.
               </p>
               
               <div className="flex gap-4">

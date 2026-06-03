@@ -15,8 +15,8 @@ export function absoluteUrl(path: string) {
 }
 
 export function constructMetadata({
-    title = "Sana-AI",
-    description = "Sana-AI - Intelligent Learning Assistant",
+    title = "Sana-Sigma",
+    description = "Sana-Sigma - Intelligent Learning Assistant",
     image = "/thumbnail.png",
     icons = "/favicon.ico",
     noIndex = false

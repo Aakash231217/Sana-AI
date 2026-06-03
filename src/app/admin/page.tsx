@@ -52,7 +52,7 @@ export default function AdminDashboard() {
           <div className="flex items-center justify-between mb-8">
             <div>
               <h1 className="text-4xl font-bold text-white mb-2">Admin Panel</h1>
-              <p className="text-slate-400">Monitor student activity and manage Sana-AI</p>
+              <p className="text-slate-400">Monitor student activity and manage Sana-Sigma</p>
             </div>
             <div className="flex items-center gap-4">
               <span className="px-3 py-1 bg-green-500/20 text-green-400 rounded-full text-sm flex items-center gap-2">

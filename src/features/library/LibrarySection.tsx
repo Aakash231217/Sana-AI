@@ -26,7 +26,7 @@ export const LibrarySection = () => {
           <Reveal width="100%">
             <div className="max-w-2xl">
               <h2 className="text-4xl font-bold text-white mb-2">Digital Library</h2>
-              <p className="text-slate-400">Curated resources powered by Sana-AI recommendations.</p>
+              <p className="text-slate-400">Curated resources powered by Sana-Sigma recommendations.</p>
             </div>
           </Reveal>
           <Reveal delay={0.2}>

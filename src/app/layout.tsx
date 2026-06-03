@@ -7,8 +7,8 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "EduFlow - Modern School Platform",
-  description: "AI-powered learning management system",
+  title: "Sana-Sigma - Modern School Platform",
+  description: "Sana-Sigma - AI-powered learning management system",
 };
 
 

@@ -33,7 +33,7 @@ export const HeroSection = () => {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-primary opacity-75"></span>
               <span className="relative inline-flex rounded-full h-3 w-3 bg-brand-primary"></span>
             </span>
-            <span className="text-sm font-medium text-blue-200">Welcome to Sana-AI v2.0</span>
+            <span className="text-sm font-medium text-blue-200">Welcome to Sana-Sigma v2.0</span>
           </div>
         </motion.div>
 
@@ -44,7 +44,7 @@ export const HeroSection = () => {
           className="text-6xl md:text-8xl font-black tracking-tight text-white mb-6 leading-tight"
         >
           Learning Reimagined <br />
-          with <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-primary via-brand-accent to-brand-glow animate-shimmer bg-[length:200%_100%]">Sana-AI</span>
+          with <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-primary via-brand-accent to-brand-glow animate-shimmer bg-[length:200%_100%]">Sana-Sigma</span>
         </motion.h1>
 
         <motion.p

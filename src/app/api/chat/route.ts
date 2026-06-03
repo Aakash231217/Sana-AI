@@ -51,7 +51,7 @@ export async function POST(req: Request) {
           messages: [
             {
               role: "system",
-              content: `You are Sana-AI, an intelligent academic tutor. Answer questions based on the provided book context. Always cite page numbers. Use markdown formatting. Be encouraging and educational.`
+              content: `You are Sana-Sigma, an intelligent academic tutor. Answer questions based on the provided book context. Always cite page numbers. Use markdown formatting. Be encouraging and educational.`
             },
             {
               role: "user",
@@ -76,7 +76,7 @@ USER QUESTION: ${queryText}`
       messages: [
         {
           role: "system",
-          content: "You are Sana-AI, a helpful, encouraging, and intelligent academic tutor for students. Keep answers concise, educational, and engaging. Use emojis occasionally."
+          content: "You are Sana-Sigma, a helpful, encouraging, and intelligent academic tutor for students. Keep answers concise, educational, and engaging. Use emojis occasionally."
         },
         ...messages
       ],

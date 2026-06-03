@@ -11,7 +11,7 @@ const config: Config = {
           dark: "#020617", // Slate 950
           primary: "#3b82f6", // Blue 500
           accent: "#8b5cf6", // Violet 500
-          glow: "#f472b6", // Pink 400 for Sana-AI branding
+          glow: "#f472b6", // Pink 400 for Sana-Sigma branding
         },
       },
       animation: {

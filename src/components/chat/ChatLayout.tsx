@@ -152,7 +152,7 @@ export const ChatLayout = ({ fileId }: ChatLayoutProps) => {
                             <h2 className="text-lg font-bold text-white tracking-tight">Resource Assistant</h2>
                             <div className="flex items-center gap-2">
                                 <span className="flex w-2 h-2 rounded-full bg-green-500 animate-pulse shadow-green-500/50" />
-                                <p className="text-xs text-slate-400 font-medium">Sana-AI Online</p>
+                                <p className="text-xs text-slate-400 font-medium">Sana-Sigma Online</p>
                             </div>
                         </div>
                     </div>
