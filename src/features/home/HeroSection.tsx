@@ -1,7 +1,7 @@
 "use client";
 import React from 'react';
 import { motion } from 'framer-motion';
-import { ArrowRight, PlayCircle } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import Link from "next/link";
 import { Button } from '@/components/ui/Button';
 import { TechRings } from '@/components/ui/TechRings'; // <--- IMPORT THIS
@@ -63,17 +63,10 @@ export const HeroSection = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.6 }}
         >
-          <Link href="/maintenance">
+          <Link href="/login">
             <Button variant="primary" className="group text-lg px-8 py-4">
               Get Started
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-            </Button>
-          </Link>
-          
-          <Link href="/maintenance">
-            <Button variant="outline" className="text-lg px-8 py-4 group">
-              <PlayCircle className="w-5 h-5 mr-2 group-hover:text-brand-glow transition-colors" />
-              Watch Demo
             </Button>
           </Link>
         </motion.div>
